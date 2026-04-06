@@ -50,8 +50,6 @@ export const login = async (data: LoginRequest): Promise<LoginResponse> => {
   }
 };
 
-import Swal from "sweetalert2";
-
 export const signup = async (data: SignupRequest): Promise<SignupResponse> => {
   try {
     const response = await fetch(

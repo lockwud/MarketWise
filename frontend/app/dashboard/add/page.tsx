@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { Plus, Check } from "lucide-react";
+import { getAuthToken } from "@/lib/auth";
 
 export default function AddPriceComparison() {
   const [formData, setFormData] = useState({
@@ -45,16 +47,33 @@ export default function AddPriceComparison() {
     setIsLoading(true);
     
     try {
-      // In a real app, this would call an API to save the price comparison
-      // For demo, we'll just show a success message
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      const token = getAuthToken();
+      const response = await fetch("https://smartpantry-bc4q.onrender.com/prices", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          productName: formData.productName,
+          category: formData.category,
+          price: parseFloat(formData.price),
+          vendor: formData.vendor,
+          location: formData.location,
+          date: formData.date,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to save price comparison");
+      }
+
       toast({
         title: "Price Comparison Added",
         description: "Your price comparison has been successfully recorded.",
       });
-      
-      // Reset form
+
       setFormData({
         productName: "",
         category: "",
@@ -63,11 +82,10 @@ export default function AddPriceComparison() {
         location: "",
         date: new Date().toISOString().split("T")[0],
       });
-    } catch (error) {
-      console.error("Failed to add price comparison:", error);
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to save price comparison. Please try again.",
+        description: error.message || "Failed to save price comparison. Please try again.",
         variant: "destructive",
       });
     } finally {

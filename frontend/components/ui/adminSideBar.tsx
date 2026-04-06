@@ -1,5 +1,5 @@
 "use client";
-import { ShoppingBasket } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import {
@@ -9,10 +9,7 @@ import {
   FaUsers,
   FaClipboardList,
   FaSignOutAlt,
-  FaFileInvoice,
-  FaRegBell,
   FaTruck,
-  FaCreditCard,
 } from "react-icons/fa";
 
 const Sidebar = () => {
@@ -49,40 +46,31 @@ const Sidebar = () => {
       <div className="flex items-center justify-between p-3">
         <h1 className={`text-lg font-bold ${!isOpen && "hidden"}`}>
           <div>
-            <span className="ml-2 text-xl font-bold text-white-900 dark:text-white flex items-center gap-1">
-              <ShoppingBasket className="h-6 w-6 text-emerald-600 dark:text-emerald-500"></ShoppingBasket>
-              FreshTrack
+            <span className="ml-2 text-xl font-bold text-white flex items-center gap-1">
+              <TrendingUp className="h-6 w-6 text-emerald-500" />
+              Market<span className="text-emerald-400">Wise</span>
             </span>
           </div>
         </h1>
-        <button onClick={() => setIsOpen(!isOpen)}>
+        <button aria-label="Toggle sidebar" onClick={() => setIsOpen(!isOpen)}>
           <FaBars />
         </button>
       </div>
       <nav className="mt-4">
-          <Link className="mb-3 p-3 rounded-lg hover:bg-green-700 transition-all flex items-center" href="/admin/dashboard">
+          <Link className="mb-3 p-3 rounded-lg hover:bg-green-700 transition-all flex items-center" href="/admin">
               <FaHome className="mr-2" /> {isOpen && 'Dashboard'}
             </Link>
-          <Link className="mb-3 p-3 rounded-lg hover:bg-green-700 transition-all flex items-center" href="/admin/inventory">
+          <Link className="mb-3 p-3 rounded-lg hover:bg-green-700 transition-all flex items-center" href="/inventory">
               <FaBox className="mr-2" /> {isOpen && 'Inventory'}
             </Link>
             <Link className="mb-3 p-3 rounded-lg hover:bg-green-700 transition-all flex items-center" href="/admin/user">
-              <FaBox className="mr-2" /> {isOpen && 'User'}
+              <FaUsers className="mr-2" /> {isOpen && 'Users'}
             </Link>
-          <Link className="mb-3 p-3 rounded-lg hover:bg-green-700 transition-all flex items-center" href= "/admin/orders">
-              <FaClipboardList className="mr-2" /> {isOpen && 'Orders'}
+          <Link className="mb-3 p-3 rounded-lg hover:bg-green-700 transition-all flex items-center" href="/admin/delivery">
+              <FaClipboardList className="mr-2" /> {isOpen && 'Price Submissions'}
             </Link>
-          <Link className="mb-3 p-3 rounded-lg hover:bg-green-700 transition-all flex items-center" href= "/admin/delivery">
-              <FaTruck className="mr-2" /> {isOpen && 'Delivery'}
-            </Link>
-          <Link className="mb-3 p-3 rounded-lg hover:bg-green-700 transition-all flex items-center" href= "/admin/orders">
-              <FaCreditCard className="mr-2" /> {isOpen && 'Payments'}
-            </Link>
-          <Link className="mb-3 p-3 rounded-lg hover:bg-green-700 transition-all flex items-center" href="admin/invoices">
-              <FaFileInvoice className="mr-2" /> {isOpen && 'Invoices'}
-            </Link>
-          <Link className="m3-4 p-3 rounded-lg hover:bg-green-700 transition-all flex items-center" href="admin/tips">
-              <FaRegBell className="mr-2" /> {isOpen && 'Tips'}
+          <Link className="mb-3 p-3 rounded-lg hover:bg-green-700 transition-all flex items-center" href="/profile">
+              <FaTruck className="mr-2" /> {isOpen && 'Settings'}
             </Link>
           
           <Link className="p-3 hover:bg-red-700 mt-auto flex items-center" href="/signout">

@@ -1,664 +1,235 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import Image from "next/image"
-import { Clock, Filter, Heart, Search, ShoppingBasket, Utensils } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { getUserRole } from "@/lib/auth";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { MobileNav } from "@/components/mobile-nav"
-import { useToast } from "@/hooks/use-toast"
+  TrendingUp, Bell, Search, Package, MapPin, ShoppingCart, LogOut,
+  LayoutDashboard, User, Menu, BarChart3, Heart, Store, Clock,
+  Users, Tag, ChevronRight, Navigation,
+} from "lucide-react";
 
-// Sample recipe data
-const recipeData = [
-  {
-    id: 1,
-    title: "Creamy Spinach Pasta",
-    description: "A quick and easy pasta dish with creamy spinach sauce.",
-    image: "/placeholder.svg?height=300&width=400",
-    prepTime: 10,
-    cookTime: 20,
-    ingredients: ["Pasta", "Spinach", "Milk", "Garlic", "Parmesan Cheese"],
-    mealType: "Dinner",
-    dietType: ["Vegetarian"],
-    instructions: [
-      "Cook pasta according to package instructions.",
-      "In a large pan, sauté garlic until fragrant.",
-      "Add spinach and cook until wilted.",
-      "Pour in milk and bring to a simmer.",
-      "Add cooked pasta and parmesan cheese, stir until creamy.",
-      "Season with salt and pepper to taste.",
-    ],
-    nutrition: {
-      calories: 450,
-      protein: "15g",
-      carbs: "65g",
-      fat: "12g",
-    },
-  },
-  {
-    id: 2,
-    title: "Chicken and Vegetable Stir Fry",
-    description: "A healthy and flavorful stir fry with chicken and seasonal vegetables.",
-    image: "/placeholder.svg?height=300&width=400",
-    prepTime: 15,
-    cookTime: 15,
-    ingredients: ["Chicken Breast", "Bell Peppers", "Broccoli", "Carrots", "Soy Sauce"],
-    mealType: "Dinner",
-    dietType: ["High Protein"],
-    instructions: [
-      "Slice chicken breast into thin strips.",
-      "Chop all vegetables into bite-sized pieces.",
-      "Heat oil in a wok or large frying pan over high heat.",
-      "Add chicken and cook until no longer pink.",
-      "Add vegetables and stir fry for 3-4 minutes.",
-      "Pour in soy sauce and other seasonings.",
-      "Cook for another 2 minutes until everything is well coated.",
-    ],
-    nutrition: {
-      calories: 320,
-      protein: "28g",
-      carbs: "18g",
-      fat: "14g",
-    },
-  },
-  {
-    id: 3,
-    title: "Apple Cinnamon Oatmeal",
-    description: "A warm and comforting breakfast with fresh apples and cinnamon.",
-    image: "/placeholder.svg?height=300&width=400",
-    prepTime: 5,
-    cookTime: 10,
-    ingredients: ["Oats", "Apples", "Milk", "Cinnamon", "Honey"],
-    mealType: "Breakfast",
-    dietType: ["Vegetarian", "Low Fat"],
-    instructions: [
-      "Dice apples into small cubes.",
-      "In a pot, combine oats and milk.",
-      "Bring to a simmer over medium heat.",
-      "Add diced apples and cinnamon.",
-      "Cook for 5-7 minutes, stirring occasionally.",
-      "Drizzle with honey before serving.",
-    ],
-    nutrition: {
-      calories: 280,
-      protein: "8g",
-      carbs: "52g",
-      fat: "5g",
-    },
-  },
-  {
-    id: 4,
-    title: "Greek Yogurt Parfait",
-    description: "A refreshing and protein-packed breakfast or snack.",
-    image: "/placeholder.svg?height=300&width=400",
-    prepTime: 5,
-    cookTime: 0,
-    ingredients: ["Greek Yogurt", "Berries", "Granola", "Honey"],
-    mealType: "Breakfast",
-    dietType: ["Vegetarian", "High Protein"],
-    instructions: [
-      "In a glass or bowl, add a layer of Greek yogurt.",
-      "Add a layer of mixed berries.",
-      "Sprinkle granola on top.",
-      "Drizzle with honey.",
-      "Repeat layers if desired.",
-    ],
-    nutrition: {
-      calories: 220,
-      protein: "18g",
-      carbs: "28g",
-      fat: "6g",
-    },
-  },
-  {
-    id: 5,
-    title: "Spinach and Feta Omelette",
-    description: "A protein-rich breakfast with spinach and feta cheese.",
-    image: "/placeholder.svg?height=300&width=400",
-    prepTime: 5,
-    cookTime: 10,
-    ingredients: ["Eggs", "Spinach", "Feta Cheese", "Milk"],
-    mealType: "Breakfast",
-    dietType: ["Vegetarian", "High Protein", "Low Carb"],
-    instructions: [
-      "Whisk eggs and milk together in a bowl.",
-      "Heat a non-stick pan over medium heat.",
-      "Pour in egg mixture and let it cook for 1-2 minutes.",
-      "Add spinach and crumbled feta cheese on one half of the omelette.",
-      "Fold the other half over the filling.",
-      "Cook for another 1-2 minutes until eggs are fully set.",
-    ],
-    nutrition: {
-      calories: 280,
-      protein: "22g",
-      carbs: "4g",
-      fat: "20g",
-    },
-  },
-  {
-    id: 6,
-    title: "Chicken and Vegetable Soup",
-    description: "A hearty and nutritious soup perfect for using up leftover chicken and vegetables.",
-    image: "/placeholder.svg?height=300&width=400",
-    prepTime: 15,
-    cookTime: 30,
-    ingredients: ["Chicken", "Carrots", "Celery", "Onion", "Chicken Broth"],
-    mealType: "Lunch",
-    dietType: ["High Protein", "Low Fat"],
-    instructions: [
-      "Dice chicken, carrots, celery, and onion.",
-      "In a large pot, sauté onion until translucent.",
-      "Add carrots and celery, cook for 3-4 minutes.",
-      "Add chicken and chicken broth.",
-      "Bring to a boil, then reduce heat and simmer for 20-25 minutes.",
-      "Season with salt, pepper, and herbs to taste.",
-    ],
-    nutrition: {
-      calories: 210,
-      protein: "24g",
-      carbs: "12g",
-      fat: "8g",
-    },
-  },
-]
+type IconComp = React.FC<{ className?: string }>;
 
-export default function RecipesPage() {
-  const { toast } = useToast()
-  const [searchQuery, setSearchQuery] = useState("")
-  const [filters, setFilters] = useState({
-    mealTypes: [],
-    dietTypes: [],
-    ingredients: [],
-  })
-  const [selectedRecipe, setSelectedRecipe] = useState(null)
-  const [favorites, setFavorites] = useState([])
+const SELLER_NAV = [
+  { href: "/dashboard", icon: LayoutDashboard as IconComp, label: "Dashboard" },
+  { href: "/inventory", icon: Package as IconComp, label: "My Products" },
+  { href: "/orders", icon: ShoppingCart as IconComp, label: "Orders" },
+  { href: "/shopping-list", icon: BarChart3 as IconComp, label: "Price Tracking" },
+  { href: "/recipes", icon: MapPin as IconComp, label: "Markets", active: true },
+  { href: "/profile", icon: User as IconComp, label: "Profile" },
+];
+const BUYER_NAV = [
+  { href: "/dashboard", icon: LayoutDashboard as IconComp, label: "Dashboard" },
+  { href: "/inventory", icon: Package as IconComp, label: "Browse Products" },
+  { href: "/shopping-list", icon: ShoppingCart as IconComp, label: "Shopping List" },
+  { href: "/orders", icon: Heart as IconComp, label: "Saved Items" },
+  { href: "/recipes", icon: MapPin as IconComp, label: "Markets", active: true },
+  { href: "/profile", icon: User as IconComp, label: "Profile" },
+];
+const ADMIN_NAV = [
+  { href: "/admin", icon: LayoutDashboard as IconComp, label: "Overview" },
+  { href: "/admin/user", icon: Users as IconComp, label: "Users" },
+  { href: "/admin/delivery", icon: Tag as IconComp, label: "Price Submissions" },
+  { href: "/inventory", icon: Package as IconComp, label: "Products" },
+  { href: "/recipes", icon: MapPin as IconComp, label: "Markets", active: true },
+  { href: "/profile", icon: User as IconComp, label: "Settings" },
+];
 
-  // Get unique meal types, diet types, and ingredients for filters
-  const mealTypes = Array.from(new Set(recipeData.map((recipe) => recipe.mealType)))
-  const dietTypes = Array.from(new Set(recipeData.flatMap((recipe) => recipe.dietType)))
-  const allIngredients = Array.from(new Set(recipeData.flatMap((recipe) => recipe.ingredients)))
+const MARKETS = [
+  { id: 1, name: "Accra Central Market", city: "Accra", region: "Greater Accra", sellers: 420, products: 1800, open: true, hours: "6am – 8pm", distance: "2.3 km", categories: ["Grains","Vegetables","Proteins","Spices"] },
+  { id: 2, name: "Kumasi Central Market", city: "Kumasi", region: "Ashanti", sellers: 580, products: 2400, open: true, hours: "5am – 9pm", distance: "210 km", categories: ["Fabrics","Food","Electronics","Clothing"] },
+  { id: 3, name: "Kaneshie Market", city: "Accra", region: "Greater Accra", sellers: 310, products: 1200, open: true, hours: "7am – 7pm", distance: "5.1 km", categories: ["Vegetables","Fruits","Poultry","Dairy"] },
+  { id: 4, name: "Takoradi Market", city: "Takoradi", region: "Western", sellers: 190, products: 900, open: false, hours: "6am – 6pm", distance: "248 km", categories: ["Seafood","Grains","Spices","Vegetables"] },
+  { id: 5, name: "Makola Market", city: "Accra", region: "Greater Accra", sellers: 650, products: 3200, open: true, hours: "5:30am – 8pm", distance: "3.1 km", categories: ["Clothing","Electronics","Food","Jewelry"] },
+  { id: 6, name: "Kejetia Market", city: "Kumasi", region: "Ashanti", sellers: 700, products: 3500, open: true, hours: "5am – 9pm", distance: "212 km", categories: ["Everything"] },
+];
 
-  const toggleFilter = (category:any, value:any) => {
-    setFilters((prev) => {
-      const updated = { ...prev }
-      if (updated[category].includes(value)) {
-        updated[category] = updated[category].filter((item:any) => item !== value)
-      } else {
-        updated[category] = [...updated[category], value]
-      }
-      return updated
-    })
-  }
-
-  const toggleFavorite = (recipeId:any) => {
-    setFavorites((prev:any) => {
-      if (prev.includes(recipeId)) {
-        toast({
-          title: "Removed from favorites",
-          description: "Recipe has been removed from your favorites.",
-        })
-        return prev.filter((id:any) => id !== recipeId)
-      } else {
-        toast({
-          title: "Added to favorites",
-          description: "Recipe has been added to your favorites.",
-        })
-        return [...prev, recipeId]
-      }
-    })
-  }
-
-  const filteredRecipes = recipeData.filter((recipe) => {
-    // Search query filter
-    const matchesSearch =
-      recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      recipe.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      recipe.ingredients.some((ingredient) => ingredient.toLowerCase().includes(searchQuery.toLowerCase()))
-
-    // Meal type filter
-    const matchesMealType = filters.mealTypes.length === 0 || filters.mealTypes.includes(recipe.mealType)
-
-    // Diet type filter
-    const matchesDietType =
-      filters.dietTypes.length === 0 || filters.dietTypes.some((diet) => recipe.dietType.includes(diet))
-
-    // Ingredient filter
-    const matchesIngredients =
-      filters.ingredients.length === 0 ||
-      filters.ingredients.every((ingredient) =>
-        recipe.ingredients.some((recipeIngredient) =>
-          recipeIngredient.toLowerCase().includes(ingredient.toLowerCase()),
-        ),
-      )
-
-    return matchesSearch && matchesMealType && matchesDietType && matchesIngredients
-  })
-
-  return (
-    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-950">
-      <header className="px-4 lg:px-20 h-16 flex items-center border-b bg-white dark:bg-gray-900 dark:border-gray-800 sticky top-0 z-30">
-        <Link className="flex items-center justify-center" href="/">
-          <ShoppingBasket className="h-6 w-6 text-emerald-600 dark:text-emerald-500" />
-          <span className="ml-2 text-xl font-bold text-gray-900 dark:text-white">FreshTrack</span>
-        </Link>
-        <nav className="ml-auto hidden md:flex gap-4 sm:gap-6">
-          {/* <Link
-            className="text-sm font-medium text-gray-700 hover:text-emerald-600 dark:text-gray-300 dark:hover:text-emerald-500 hover:underline underline-offset-4"
-            href="/"
-          >
-            Home
-          </Link> */}
-          <Link
-            className="text-sm font-medium text-gray-700 hover:text-emerald-600 dark:text-gray-300 dark:hover:text-emerald-500 hover:underline underline-offset-4"
-            href="/dashboard"
-          >
-            Dashboard
-          </Link>
-          <Link
-            className="text-sm font-medium text-emerald-600 dark:text-emerald-500 hover:underline underline-offset-4"
-            href="/recipes"
-          >
-            Recipes
-          </Link>
-          <Link
-            className="text-sm font-medium text-gray-700 hover:text-emerald-600 dark:text-gray-300 dark:hover:text-emerald-500 hover:underline underline-offset-4"
-            href="/shopping-list"
-          >
-            Shopping List
-          </Link>
-          <Link
-            className="text-sm font-medium text-gray-700 hover:text-emerald-600 dark:text-gray-300 dark:hover:text-emerald-500 hover:underline underline-offset-4"
-            href="/profile"
-          >
-            Profile
-          </Link>
-        </nav>
-        <MobileNav />
-      </header>
-      <main className="flex-1 py-6 px-4 md:px-20">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Recipe Suggestions</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Find recipes based on ingredients you have or discover new meal ideas.
-          </p>
-        </div>
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
-            <Input
-              type="search"
-              placeholder="Search recipes or ingredients..."
-              className="pl-8 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button
-                variant="outline"
-                className="md:w-auto border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300"
-              >
-                <Filter className="h-4 w-4 mr-2" />
-                Filters
-                {(filters.mealTypes.length > 0 || filters.dietTypes.length > 0 || filters.ingredients.length > 0) && (
-                  <Badge
-                    variant="secondary"
-                    className="ml-2 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
-                  >
-                    {filters.mealTypes.length + filters.dietTypes.length + filters.ingredients.length}
-                  </Badge>
-                )}
-              </Button>
-            </SheetTrigger>
-            <SheetContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
-              <SheetHeader>
-                <SheetTitle className="text-gray-900 dark:text-white">Filter Recipes</SheetTitle>
-                <SheetDescription className="text-gray-600 dark:text-gray-400">
-                  Narrow down recipes by meal type, diet, or ingredients.
-                </SheetDescription>
-              </SheetHeader>
-              <div className="py-4 space-y-6">
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-gray-900 dark:text-white">Meal Type</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {mealTypes.map((type) => (
-                      <div key={type} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`meal-${type}`}
-                          checked={filters.mealTypes.includes(type)}
-                          onCheckedChange={() => toggleFilter("mealTypes", type)}
-                          className="border-gray-300 dark:border-gray-600 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600 dark:data-[state=checked]:bg-emerald-600 dark:data-[state=checked]:border-emerald-600"
-                        />
-                        <Label htmlFor={`meal-${type}`} className="text-gray-700 dark:text-gray-300">
-                          {type}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-gray-900 dark:text-white">Diet Type</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {dietTypes.map((type) => (
-                      <div key={type} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`diet-${type}`}
-                          checked={filters.dietTypes.includes(type)}
-                          onCheckedChange={() => toggleFilter("dietTypes", type)}
-                          className="border-gray-300 dark:border-gray-600 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600 dark:data-[state=checked]:bg-emerald-600 dark:data-[state=checked]:border-emerald-600"
-                        />
-                        <Label htmlFor={`diet-${type}`} className="text-gray-700 dark:text-gray-300">
-                          {type}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-gray-900 dark:text-white">Ingredients</h3>
-                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                    {allIngredients.map((ingredient) => (
-                      <div key={ingredient} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`ingredient-${ingredient}`}
-                          checked={filters.ingredients.includes(ingredient)}
-                          onCheckedChange={() => toggleFilter("ingredients", ingredient)}
-                          className="border-gray-300 dark:border-gray-600 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600 dark:data-[state=checked]:bg-emerald-600 dark:data-[state=checked]:border-emerald-600"
-                        />
-                        <Label htmlFor={`ingredient-${ingredient}`} className="text-gray-700 dark:text-gray-300">
-                          {ingredient}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  className="w-full border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300"
-                  onClick={() => setFilters({ mealTypes: [], dietTypes: [], ingredients: [] })}
-                >
-                  Clear All Filters
-                </Button>
-              </div>
-            </SheetContent>
-          </Sheet>
-        </div>
-
-        {filteredRecipes.length > 0 ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredRecipes.map((recipe) => (
-              <Card
-                key={recipe.id}
-                className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 overflow-hidden group"
-              >
-                <div className="aspect-video relative">
-                  <Image src={recipe.image || "/placeholder.svg"} alt={recipe.title} fill className="object-cover" />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={`absolute top-2 right-2 bg-white/80 dark:bg-gray-900/80 hover:bg-white dark:hover:bg-gray-900 ${
-                      favorites.includes(recipe.id)
-                        ? "text-red-500 dark:text-red-400"
-                        : "text-gray-500 dark:text-gray-400 opacity-0 group-hover:opacity-100"
-                    }`}
-                    onClick={() => toggleFavorite(recipe.id)}
-                  >
-                    <Heart className={`h-5 w-5 ${favorites.includes(recipe.id) ? "fill-current" : ""}`} />
-                    <span className="sr-only">
-                      {favorites.includes(recipe.id) ? "Remove from favorites" : "Add to favorites"}
-                    </span>
-                  </Button>
-                </div>
-                <CardHeader>
-                  <div className="flex justify-between items-start gap-4">
-                    <div>
-                      <CardTitle className="text-gray-900 dark:text-white">{recipe.title}</CardTitle>
-                      <CardDescription className="mt-1 text-gray-600 dark:text-gray-400">
-                        {recipe.description}
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-1" />
-                      <span>{recipe.prepTime + recipe.cookTime} min</span>
-                    </div>
-                    <div>
-                      <Badge
-                        variant="outline"
-                        className="border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300"
-                      >
-                        {recipe.mealType}
-                      </Badge>
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Main Ingredients:</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {recipe.ingredients.map((ingredient) => (
-                        <Badge
-                          key={ingredient}
-                          variant="secondary"
-                          className="text-xs bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400"
-                        >
-                          {ingredient}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button
-                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-600 dark:hover:bg-emerald-700"
-                        onClick={() => setSelectedRecipe(recipe)}
-                      >
-                        <Utensils className="h-4 w-4 mr-2" />
-                        View Recipe
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[700px] bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
-                      <DialogHeader>
-                        <DialogTitle className="text-gray-900 dark:text-white text-xl">{recipe.title}</DialogTitle>
-                        <DialogDescription className="text-gray-600 dark:text-gray-400">
-                          {recipe.description}
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="relative aspect-video w-full overflow-hidden rounded-lg mb-4">
-                        <Image
-                          src={recipe.image || "/placeholder.svg"}
-                          alt={recipe.title}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                      <Tabs defaultValue="instructions">
-                        <TabsList className="bg-gray-100 dark:bg-gray-800">
-                          <TabsTrigger
-                            value="instructions"
-                            className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-900 data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-500"
-                          >
-                            Instructions
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="ingredients"
-                            className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-900 data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-500"
-                          >
-                            Ingredients
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="nutrition"
-                            className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-900 data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-500"
-                          >
-                            Nutrition
-                          </TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="instructions" className="pt-4">
-                          <div className="space-y-4">
-                            <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                              <div className="flex items-center">
-                                <Clock className="h-4 w-4 mr-1" />
-                                <span>Prep: {recipe.prepTime} min</span>
-                              </div>
-                              <div className="flex items-center">
-                                <Clock className="h-4 w-4 mr-1" />
-                                <span>Cook: {recipe.cookTime} min</span>
-                              </div>
-                              <div className="flex items-center">
-                                <Clock className="h-4 w-4 mr-1" />
-                                <span>Total: {recipe.prepTime + recipe.cookTime} min</span>
-                              </div>
-                            </div>
-                            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Steps</h3>
-                            <ol className="space-y-2">
-                              {recipe.instructions.map((step, index) => (
-                                <li key={index} className="flex gap-2 text-gray-700 dark:text-gray-300">
-                                  <span className="font-bold">{index + 1}.</span>
-                                  <span>{step}</span>
-                                </li>
-                              ))}
-                            </ol>
-                          </div>
-                        </TabsContent>
-                        <TabsContent value="ingredients" className="pt-4">
-                          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Ingredients</h3>
-                          <ul className="space-y-2">
-                            {recipe.ingredients.map((ingredient, index) => (
-                              <li key={index} className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                <div className="h-2 w-2 rounded-full bg-emerald-600 dark:bg-emerald-500"></div>
-                                <span>{ingredient}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </TabsContent>
-                        <TabsContent value="nutrition" className="pt-4">
-                          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                            Nutrition Information
-                          </h3>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
-                              <p className="text-sm text-gray-600 dark:text-gray-400">Calories</p>
-                              <p className="text-xl font-bold text-gray-900 dark:text-white">
-                                {recipe.nutrition.calories}
-                              </p>
-                            </div>
-                            <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
-                              <p className="text-sm text-gray-600 dark:text-gray-400">Protein</p>
-                              <p className="text-xl font-bold text-gray-900 dark:text-white">
-                                {recipe.nutrition.protein}
-                              </p>
-                            </div>
-                            <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
-                              <p className="text-sm text-gray-600 dark:text-gray-400">Carbs</p>
-                              <p className="text-xl font-bold text-gray-900 dark:text-white">
-                                {recipe.nutrition.carbs}
-                              </p>
-                            </div>
-                            <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
-                              <p className="text-sm text-gray-600 dark:text-gray-400">Fat</p>
-                              <p className="text-xl font-bold text-gray-900 dark:text-white">{recipe.nutrition.fat}</p>
-                            </div>
-                          </div>
-                        </TabsContent>
-                      </Tabs>
-                      <div className="flex justify-between mt-4">
-                        <Button
-                          variant="outline"
-                          className="border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300"
-                          onClick={() => {
-                            toast({
-                              title: "Added to shopping list",
-                              description: "Ingredients have been added to your shopping list.",
-                            })
-                          }}
-                        >
-                          Add to Shopping List
-                        </Button>
-                        <Button
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-600 dark:hover:bg-emerald-700"
-                          onClick={() => toggleFavorite(recipe.id)}
-                        >
-                          {favorites.includes(recipe.id) ? (
-                            <>
-                              <Heart className="h-4 w-4 mr-2 fill-current" />
-                              Remove from Favorites
-                            </>
-                          ) : (
-                            <>
-                              <Heart className="h-4 w-4 mr-2" />
-                              Add to Favorites
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-12 text-center bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800">
-            <Utensils className="h-12 w-12 text-gray-300 dark:text-gray-700 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">No recipes found</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 mb-4 max-w-md">
-              {searchQuery ||
-              filters.mealTypes.length > 0 ||
-              filters.dietTypes.length > 0 ||
-              filters.ingredients.length > 0
-                ? "Try adjusting your search or filters to find more recipes"
-                : "Add some ingredients to your inventory to get personalized recipe suggestions"}
-            </p>
-            <Button
-              variant="outline"
-              className="border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300"
-              onClick={() => {
-                setSearchQuery("")
-                setFilters({ mealTypes: [], dietTypes: [], ingredients: [] })
-              }}
-            >
-              Clear All Filters
-            </Button>
-          </div>
-        )}
-      </main>
-      <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t bg-white dark:bg-gray-900 dark:border-gray-800">
-        <p className="text-xs text-gray-500 dark:text-gray-400">© 2024 FreshTrack. All rights reserved.</p>
-        <nav className="sm:ml-auto flex gap-4 sm:gap-6">
-          <Link
-            className="text-xs text-gray-500 hover:text-emerald-600 dark:text-gray-400 dark:hover:text-emerald-500 hover:underline underline-offset-4"
-            href="#"
-          >
-            Terms of Service
-          </Link>
-          <Link
-            className="text-xs text-gray-500 hover:text-emerald-600 dark:text-gray-400 dark:hover:text-emerald-500 hover:underline underline-offset-4"
-            href="#"
-          >
-            Privacy
-          </Link>
-        </nav>
-      </footer>
-    </div>
-  )
+export default function MarketsPage() {
+  const [role, setRole] = useState<string | null>(null);
+  useEffect(() => { setRole(getUserRole() || "seller"); }, []);
+  if (!role) return <div className="flex h-screen items-center justify-center"><div className="h-8 w-8 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin" /></div>;
+  const nav = role === "admin" ? ADMIN_NAV : role === "buyer" ? BUYER_NAV : SELLER_NAV;
+  const accent = role === "admin" ? "violet" : "emerald";
+  return <MarketsView role={role} nav={nav} accent={accent} />;
 }
 
+function MarketsView({ role, nav, accent }: { role: string; nav: typeof SELLER_NAV; accent: string }) {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [search, setSearch] = useState("");
+  const [regionFilter, setRegionFilter] = useState("All");
+  const [openOnly, setOpenOnly] = useState(false);
+  const [selected, setSelected] = useState<typeof MARKETS[0] | null>(null);
+
+  const regions = ["All", ...Array.from(new Set(MARKETS.map(m => m.region)))];
+  const filtered = MARKETS.filter(m =>
+    (regionFilter === "All" || m.region === regionFilter) &&
+    (!openOnly || m.open) &&
+    (m.name.toLowerCase().includes(search.toLowerCase()) || m.city.toLowerCase().includes(search.toLowerCase()))
+  );
+
+  const activeStyle = accent === "violet"
+    ? "bg-violet-600 text-white"
+    : "bg-emerald-600 text-white";
+  const iconBg = accent === "violet"
+    ? "bg-violet-600"
+    : "bg-emerald-600";
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
+      {/* Sidebar */}
+      <aside className={`${sidebarOpen ? "w-56" : "w-16"} flex-shrink-0 bg-gray-900 text-white flex flex-col transition-all duration-300 z-20`}>
+        <div className="h-14 flex items-center px-4 border-b border-gray-800 gap-2">
+          <div className={`h-8 w-8 flex-shrink-0 flex items-center justify-center rounded-lg ${iconBg}`}><TrendingUp className="h-4 w-4 text-white" /></div>
+          {sidebarOpen && <span className="text-base font-bold tracking-tight">Market<span className={accent === "violet" ? "text-violet-400" : "text-emerald-400"}>Wise</span></span>}
+          <button aria-label="Toggle sidebar" className="ml-auto text-gray-400 hover:text-white" onClick={() => setSidebarOpen(!sidebarOpen)}><Menu className="h-4 w-4" /></button>
+        </div>
+        {sidebarOpen && <div className="px-3 pt-4 pb-1"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">{role === "admin" ? "Admin Panel" : role === "buyer" ? "Buyer Panel" : "Seller Panel"}</span></div>}
+        <nav className="flex-1 py-2 space-y-1 px-2 overflow-y-auto">
+          {nav.map(({ href, icon: Icon, label, active }) => (
+            <Link key={href} href={href} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${active ? activeStyle : "text-gray-400 hover:bg-gray-800 hover:text-white"}`}>
+              <Icon className="h-4 w-4 flex-shrink-0" />{sidebarOpen && <span>{label}</span>}
+            </Link>
+          ))}
+        </nav>
+        <div className="p-2 border-t border-gray-800">
+          <Link href="/signout" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400 hover:bg-red-900/40 hover:text-red-400 transition-colors">
+            <LogOut className="h-4 w-4 flex-shrink-0" />{sidebarOpen && <span>Logout</span>}
+          </Link>
+        </div>
+      </aside>
+
+      {/* Main */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <header className="h-14 bg-white dark:bg-gray-900 border-b dark:border-gray-800 flex items-center px-6 gap-4 flex-shrink-0 shadow-sm">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search markets, cities…"
+              className="w-full pl-9 pr-4 py-2 text-sm bg-gray-100 dark:bg-gray-800 rounded-lg border-0 outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" />
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+              <input type="checkbox" checked={openOnly} onChange={e => setOpenOnly(e.target.checked)} className="accent-emerald-600 h-4 w-4 rounded" /> Open now
+            </label>
+            <button aria-label="Notifications" className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"><Bell className="h-5 w-5" /></button>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-6 space-y-5">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Markets</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Explore markets across Ghana · {filtered.length} market{filtered.length !== 1 ? "s" : ""}</p>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { label: "Total Markets", value: MARKETS.length, Icon: Store as IconComp, bg: "bg-emerald-50 dark:bg-emerald-900/20", ic: "text-emerald-600" },
+              { label: "Open Now", value: MARKETS.filter(m => m.open).length, Icon: Clock as IconComp, bg: "bg-blue-50 dark:bg-blue-900/20", ic: "text-blue-600" },
+              { label: "Total Sellers", value: MARKETS.reduce((a, m) => a + m.sellers, 0).toLocaleString(), Icon: Users as IconComp, bg: "bg-amber-50 dark:bg-amber-900/20", ic: "text-amber-600" },
+              { label: "Products Listed", value: MARKETS.reduce((a, m) => a + m.products, 0).toLocaleString(), Icon: Package as IconComp, bg: "bg-purple-50 dark:bg-purple-900/20", ic: "text-purple-600" },
+            ].map(({ label, value, Icon, bg, ic }) => (
+              <div key={label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 flex items-center gap-4">
+                <span className={`p-3 rounded-xl ${bg} flex-shrink-0`}><Icon className={`h-5 w-5 ${ic}`} /></span>
+                <div><p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p><p className="text-xs text-gray-500">{label}</p></div>
+              </div>
+            ))}
+          </div>
+
+          {/* Region filter */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {regions.map(r => (
+              <button key={r} onClick={() => setRegionFilter(r)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${regionFilter === r ? "bg-emerald-600 text-white" : "bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-emerald-300"}`}>
+                {r}
+              </button>
+            ))}
+          </div>
+
+          {/* Market cards */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filtered.map(market => (
+              <button key={market.id} onClick={() => setSelected(market)}
+                className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 text-left hover:border-emerald-400 dark:hover:border-emerald-700 hover:shadow-md transition-all group">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center flex-shrink-0">
+                    <Store className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${market.open ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-gray-100 text-gray-500 dark:bg-gray-800"}`}>
+                    {market.open ? "Open" : "Closed"}
+                  </span>
+                </div>
+                <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{market.name}</h3>
+                <p className="text-sm text-gray-500 mt-1 flex items-center gap-1"><MapPin className="h-3 w-3" />{market.city}, {market.region}</p>
+                <div className="mt-3 flex items-center gap-3 text-xs text-gray-500">
+                  <span className="flex items-center gap-1"><Users className="h-3 w-3" />{market.sellers} sellers</span>
+                  <span className="flex items-center gap-1"><Package className="h-3 w-3" />{market.products.toLocaleString()} products</span>
+                </div>
+                <div className="mt-3 flex items-center gap-1 flex-wrap">
+                  {market.categories.slice(0, 3).map(cat => (
+                    <span key={cat} className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs text-gray-600 dark:text-gray-400">{cat}</span>
+                  ))}
+                  {market.categories.length > 3 && <span className="text-xs text-gray-400">+{market.categories.length - 3}</span>}
+                </div>
+                <div className="mt-3 flex items-center justify-between">
+                  <span className="text-xs text-gray-400 flex items-center gap-1"><Navigation className="h-3 w-3" />{market.distance}</span>
+                  <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-emerald-500 transition-colors" />
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {filtered.length === 0 && (
+            <div className="flex flex-col items-center py-16 text-gray-400">
+              <Store className="h-12 w-12 mb-3 opacity-30" />
+              <p className="text-sm">No markets match your filter.</p>
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* Market Detail Modal */}
+      {selected && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setSelected(null)}>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Branding bar */}
+            <div className="bg-gray-900 dark:bg-gray-950 px-5 py-3 flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-emerald-400" />
+              <span className="text-sm font-bold text-white">Market<span className="text-emerald-400">Wise</span></span>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">{selected.name}</h2>
+                  <p className="text-sm text-gray-500 flex items-center gap-1 mt-1"><MapPin className="h-3.5 w-3.5" />{selected.city}, {selected.region}</p>
+                </div>
+                <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${selected.open ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>{selected.open ? "Open" : "Closed"}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  ["Sellers", selected.sellers],
+                  ["Products", selected.products.toLocaleString()],
+                  ["Hours", selected.hours],
+                  ["Distance", selected.distance],
+                ].map(([k, v]) => (
+                  <div key={String(k)} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <p className="text-xs text-gray-400">{k}</p>
+                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-1">{v}</p>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wide">Categories</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {selected.categories.map(cat => <span key={cat} className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-full text-xs font-medium">{cat}</span>)}
+                </div>
+              </div>
+              <button onClick={() => setSelected(null)} className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Mail, ShoppingBasket } from "lucide-react"
+import { ArrowLeft, Mail, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -16,25 +16,32 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
   const [submitted, setSubmitted] = useState(false)
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      const response = await fetch("https://smartpantry-bc4q.onrender.com/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
 
-      // In a real app, this would call a password reset API
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.message || "Failed to send reset link")
+      }
+
       setSubmitted(true)
       toast({
         title: "Reset link sent",
         description: "Check your email for a link to reset your password.",
       })
-    } catch (error) {
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Failed to send reset link",
-        description: "An error occurred. Please try again.",
+        description: error.message || "An error occurred. Please try again.",
       })
     } finally {
       setIsLoading(false)
@@ -44,9 +51,13 @@ export default function ForgotPasswordPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="px-4 lg:px-6 h-16 flex items-center border-b">
-        <Link className="flex items-center justify-center" href="/">
-          <ShoppingBasket className="h-6 w-6 text-green-600" />
-          <span className="ml-2 text-xl font-bold">FreshTrack</span>
+        <Link className="flex items-center gap-2" href="/">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600">
+            <TrendingUp className="h-5 w-5 text-white" />
+          </div>
+          <span className="text-xl font-bold tracking-tight">
+            Market<span className="text-emerald-600">Wise</span>
+          </span>
         </Link>
         <nav className="ml-auto flex gap-4 sm:gap-6">
           <Link className="text-sm font-medium hover:underline underline-offset-4" href="/">
@@ -126,18 +137,7 @@ export default function ForgotPasswordPage() {
           </CardFooter>
         </Card>
       </main>
-      <Footer/>
-      {/* <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t">
-        <p className="text-xs text-gray-500">© 2024 FreshTrack. All rights reserved.</p>
-        <nav className="sm:ml-auto flex gap-4 sm:gap-6">
-          <Link className="text-xs hover:underline underline-offset-4" href="#">
-            Terms of Service
-          </Link>
-          <Link className="text-xs hover:underline underline-offset-4" href="#">
-            Privacy
-          </Link>
-        </nav>
-      </footer> */}
+      <Footer />
     </div>
   )
 }

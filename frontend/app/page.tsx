@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -17,6 +18,46 @@ import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/mobile-nav";
 import { Badge } from "@/components/ui/badge";
 import { Footer } from "@/components/footer";
+
+function StatItem({ target, suffix, label }: { target: number; suffix: string; label: string }) {
+  const [count, setCount] = useState(0);
+  const [started, setStarted] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setStarted(true); observer.disconnect(); } },
+      { threshold: 0.5 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!started) return;
+    const duration = 1800;
+    let startTime: number | null = null;
+    const step = (ts: number) => {
+      if (!startTime) startTime = ts;
+      const progress = Math.min((ts - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCount(Math.round(eased * target));
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [started, target]);
+
+  return (
+    <div ref={ref}>
+      <p className="text-4xl font-extrabold tabular-nums">
+        {count}{suffix}
+      </p>
+      <p className="mt-1 text-emerald-200 text-sm">{label}</p>
+    </div>
+  );
+}
 
 export default function Home() {
   return (
@@ -338,17 +379,10 @@ export default function Home() {
         <section className="w-full py-16 bg-emerald-600 dark:bg-emerald-700">
           <div className="container mx-auto px-4 md:px-8">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center text-white">
-              {[
-                { value: "500+", label: "Markets Tracked" },
-                { value: "50+", label: "Cities Covered" },
-                { value: "10 k+", label: "Daily Price Records" },
-                { value: "95 %", label: "Prediction Accuracy" },
-              ].map(({ value, label }) => (
-                <div key={label}>
-                  <p className="text-4xl font-extrabold">{value}</p>
-                  <p className="mt-1 text-emerald-200 text-sm">{label}</p>
-                </div>
-              ))}
+              <StatItem target={500} suffix="+" label="Markets Tracked" />
+              <StatItem target={50} suffix="+" label="Cities Covered" />
+              <StatItem target={10} suffix="k+" label="Daily Price Records" />
+              <StatItem target={95} suffix="%" label="Prediction Accuracy" />
             </div>
           </div>
         </section>

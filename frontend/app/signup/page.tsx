@@ -15,14 +15,10 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
-import { toast, useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { signup } from "@/lib/api/auth";
 import { setAuthCookies, isAuthenticated } from "@/lib/auth";
-import Image from "next/image";
-import google from "@/public/images/google.png";
-import facebook from "@/public/images/facebooklog.png";
 
 interface FormData {
   name: string;
@@ -44,9 +40,7 @@ export default function SignupPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [isOAuthLoading, setIsOAuthLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [redirectUri, setRedirectUri] = useState("");
   const [formData, setFormData] = useState<FormData>({
     name: "",
     email: "",
@@ -63,47 +57,8 @@ export default function SignupPage() {
   });
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setRedirectUri(encodeURIComponent(`${window.location.origin}/signup`));
-    }
-
-    const checkAuthAndRedirect = async () => {
-      try {
-        const params = new URLSearchParams(window.location.search);
-        const token = params.get("token");
-        const role = params.get("role");
-        const error = params.get("error");
-
-        if (error) {
-          toast({
-            variant: "destructive",
-            title: "Authentication Error",
-            description: error,
-          });
-          return;
-        }
-
-        if (token && role) {
-          setAuthCookies(token, role);
-          toast({ title: "Signup successful", description: "Welcome to MarketWise!" });
-          window.history.replaceState({}, document.title, window.location.pathname);
-
-          const returnUrl = params.get("returnUrl");
-          const redirectTo = returnUrl ? `/${returnUrl}` : role === "admin" ? "/admin" : "/dashboard";
-          router.push(redirectTo);
-          return;
-        }
-      } catch (error) {
-        toast({
-          variant: "destructive",
-          title: "Authentication Error",
-          description: "Failed to process authentication. Please try again.",
-        });
-      }
-    };
-
-    checkAuthAndRedirect();
-  }, [router, toast]);
+    if (isAuthenticated()) router.replace("/dashboard");
+  }, [router]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -194,23 +149,6 @@ export default function SignupPage() {
     }
   };
 
-  const handleOAuthSignup = (provider: "google" | "facebook") => {
-    try {
-      const baseUrl = "https://smartpantry-bc4q.onrender.com/auth";
-      const url =
-        provider === "google"
-          ? `${baseUrl}/google/redirect?redirect_uri=${redirectUri}`
-          : `${baseUrl}/facebook/redirect?redirect_uri=${redirectUri}`;
-
-      window.location.href = url;
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: `Failed to initiate ${provider} signup. Please try again.`,
-      });
-    }
-  };
 
   return (
     <div className="flex min-h-screen flex-col bg-white dark:bg-gray-950">
@@ -375,51 +313,16 @@ export default function SignupPage() {
             <CardFooter className="flex flex-col">
               <Button
                 type="submit"
-                className="w-full bg-green-600 hover:bg-green-700"
+                className="w-full bg-emerald-600 hover:bg-emerald-700"
                 disabled={isLoading}
               >
                 {isLoading ? "Signing up..." : "Sign Up"}
               </Button>
               <div className="mt-4 text-center text-sm">
                 Already have an account?{" "}
-                <Link href="/login" className="text-green-600 hover:underline">
+                <Link href="/login" className="text-emerald-600 hover:underline">
                   Login
                 </Link>
-              </div>
-              <div className="mt-6 flex items-center gap-2 w-full">
-                <Separator className="flex-1" />
-                <span className="text-xs text-gray-500">OR</span>
-                <Separator className="flex-1" />
-              </div>
-              <div className="mt-4 grid w-full gap-2">
-                <Button
-                  variant="outline"
-                  type="button"
-                  className="w-full"
-                  onClick={() => handleOAuthSignup("google")}
-                  disabled={isOAuthLoading}
-                >
-                  <Image
-                    src={google}
-                    alt="Google Icon"
-                    className="w-[30px] rounded-[5%]"
-                  />
-                  {isOAuthLoading ? "Authenticating..." : "Continue with Google"}
-                </Button>
-                <Button
-                  variant="outline"
-                  type="button"
-                  className="w-full"
-                  onClick={() => handleOAuthSignup("facebook")}
-                  disabled={isOAuthLoading}
-                >
-                  <Image
-                    src={facebook}
-                    alt="Facebook Icon"
-                    className="w-[30px] rounded-[5%]"
-                  />
-                  Continue with Facebook
-                </Button>
               </div>
             </CardFooter>
           </form>

@@ -86,9 +86,9 @@ export function Footer() {
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Contact</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>Email: support@foodtracker.com</li>
-              <li>Phone: (555) 123-4567</li>
-              <li>Address: 123 Food Street, Kitchen City</li>
+              <li>Email: support@marketwise.gh</li>
+              <li>Phone: +233 30 000 0000</li>
+              <li>Address: Accra, Greater Accra, Ghana</li>
             </ul>
           </div>
         </div>
@@ -97,7 +97,7 @@ export function Footer() {
         <div className="mt-8 pt-8 border-t">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} Food Tracker. All rights reserved.
+              © {new Date().getFullYear()} MarketWise. All rights reserved.
             </p>
             <div className="flex space-x-4 mt-4 md:mt-0">
               <Link

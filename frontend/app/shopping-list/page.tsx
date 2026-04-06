@@ -1,349 +1,588 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { Check, ChevronDown, ChevronUp, Plus, ShoppingBasket, ShoppingCart, Trash2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Separator } from "@/components/ui/separator"
-import { Badge } from "@/components/ui/badge"
-import { useToast } from "@/hooks/use-toast"
-import { MobileNav } from "@/components/mobile-nav"
-import { Footer } from "@/components/footer"
+import { useEffect, useState, Suspense } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { getUserRole } from "@/lib/auth";
+import {
+  TrendingUp, Bell, Search, Package, MapPin, ShoppingCart, LogOut,
+  LayoutDashboard, User, Menu, BarChart3, Heart, ArrowUp, ArrowDown,
+  Plus, Trash2, AlertCircle, Bell as BellIcon, X, CheckCircle, TrendingDown,
+  Archive, RotateCcw,
+} from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
-// Sample data
-const initialItems = [
-  { id: 1, name: "Milk", category: "Dairy", quantity: "1 gallon", completed: false },
-  { id: 2, name: "Eggs", category: "Dairy", quantity: "1 dozen", completed: false },
-  { id: 3, name: "Bread", category: "Bakery", quantity: "1 loaf", completed: true },
-  { id: 4, name: "Chicken Breast", category: "Meat", quantity: "2 lbs", completed: false },
-  { id: 5, name: "Spinach", category: "Vegetables", quantity: "1 bag", completed: false },
-  { id: 6, name: "Apples", category: "Fruits", quantity: "6", completed: true },
-  { id: 7, name: "Pasta", category: "Grains", quantity: "1 box", completed: false },
-  { id: 8, name: "Tomato Sauce", category: "Canned Goods", quantity: "1 jar", completed: false },
-]
+/* ─── data ─────────────────────────────────────────────────────── */
+const PRICE_HISTORY = [
+  { id: 1, product: "Rice (5kg bag)", market: "Accra Central Market", category: "Grains", oldPrice: 42, newPrice: 45, change: "+7.1%", up: true, date: "Apr 6, 2026" },
+  { id: 2, product: "Cooking Oil (2L)", market: "Kumasi Central Market", category: "Cooking Essentials", oldPrice: 40, newPrice: 38.5, change: "-3.8%", up: false, date: "Apr 5, 2026" },
+  { id: 3, product: "Tomatoes (1kg)", market: "Takoradi Market", category: "Vegetables", oldPrice: 11.5, newPrice: 12, change: "+4.3%", up: true, date: "Apr 5, 2026" },
+  { id: 4, product: "Chicken (1kg)", market: "Accra Central Market", category: "Proteins", oldPrice: 35, newPrice: 32, change: "-8.6%", up: false, date: "Apr 4, 2026" },
+  { id: 5, product: "Eggs (crate×30)", market: "Kaneshie Market", category: "Proteins", oldPrice: 52, newPrice: 55, change: "+5.8%", up: true, date: "Apr 4, 2026" },
+  { id: 6, product: "Yam (medium)", market: "Kumasi Central Market", category: "Vegetables", oldPrice: 17, newPrice: 18, change: "+5.9%", up: true, date: "Apr 3, 2026" },
+];
+const PRICE_ALERTS_INIT = [
+  { id: 1, product: "Rice (50kg bag)", condition: "below GH₵270", current: 290, target: 270 },
+  { id: 2, product: "Cooking Oil (2L)", condition: "any change >5%", current: 38.5, target: 38.5 },
+];
+const SHOPPING_LIST_INIT = [
+  { id: 1, name: "Rice (50kg bag)", category: "Grains", quantity: "1 bag", checked: false },
+  { id: 2, name: "Tomatoes (1kg)", category: "Vegetables", quantity: "2 kg", checked: true },
+  { id: 3, name: "Cooking Oil (2L)", category: "Cooking Essentials", quantity: "1 bottle", checked: false },
+];
 
-export default function ShoppingListPage() {
-  const { toast } = useToast()
-  const [items, setItems] = useState(initialItems)
-  const [newItem, setNewItem] = useState({ name: "", category: "", quantity: "" })
-  const [showCompleted, setShowCompleted] = useState(true)
+const PRODUCT_PRICES: Record<string, { lowestPrice: number; avgPrice: number; change: string; up: boolean }> = {
+  "Rice (50kg bag)": { lowestPrice: 265, avgPrice: 290, change: "+2.1%", up: true },
+  "Cooking Oil (2L)": { lowestPrice: 34, avgPrice: 38.5, change: "-3.8%", up: false },
+  "Tomatoes (1kg)": { lowestPrice: 9, avgPrice: 12, change: "+4.3%", up: true },
+  "Chicken (1kg)": { lowestPrice: 28, avgPrice: 32, change: "-8.6%", up: false },
+  "Eggs (crate×30)": { lowestPrice: 50, avgPrice: 55, change: "+5.4%", up: true },
+  "Yam (medium)": { lowestPrice: 15, avgPrice: 18, change: "+1.5%", up: true },
+  // Electronics
+  "iPhone 16 Pro Max (256GB)": { lowestPrice: 8500, avgPrice: 9800, change: "+3.2%", up: true },
+  "Samsung Galaxy S24 Ultra": { lowestPrice: 7200, avgPrice: 8400, change: "-2.1%", up: false },
+  "Samsung Galaxy A55 5G": { lowestPrice: 3200, avgPrice: 4100, change: "+1.8%", up: true },
+  "MacBook Air M3 (13\")": { lowestPrice: 13500, avgPrice: 15800, change: "+5.1%", up: true },
+  "HP Pavilion 15 (Core i7)": { lowestPrice: 6800, avgPrice: 8200, change: "-4.3%", up: false },
+  "Lenovo IdeaPad 3 (Core i5)": { lowestPrice: 5400, avgPrice: 6500, change: "+2.4%", up: true },
+  "Dell OptiPlex 7010 (i5)": { lowestPrice: 4200, avgPrice: 5500, change: "+2.7%", up: true },
+  "HP ProDesk 400 (Ryzen 5)": { lowestPrice: 3900, avgPrice: 4800, change: "-1.5%", up: false },
+};
 
-  const handleAddItem = (e) => {
-    e.preventDefault()
-    if (!newItem.name) return
-
-    const item = {
-      id: Date.now(),
-      name: newItem.name,
-      category: newItem.category || "Other",
-      quantity: newItem.quantity || "1",
-      completed: false,
-    }
-
-    setItems([...items, item])
-    setNewItem({ name: "", category: "", quantity: "" })
-    toast({
-      title: "Item added",
-      description: `${item.name} has been added to your shopping list.`,
-    })
-  }
-
-  const toggleItemCompletion = (id) => {
-    setItems(items.map((item) => (item.id === id ? { ...item, completed: !item.completed } : item)))
-  }
-
-  const removeItem = (id) => {
-    setItems(items.filter((item) => item.id !== id))
-    toast({
-      title: "Item removed",
-      description: "The item has been removed from your shopping list.",
-    })
-  }
-
-  const clearCompletedItems = () => {
-    setItems(items.filter((item) => !item.completed))
-    toast({
-      title: "Completed items cleared",
-      description: "All completed items have been removed from your list.",
-    })
-  }
-
-  // Group items by category
-  const groupedItems = items.reduce((acc, item) => {
-    if (!acc[item.category]) {
-      acc[item.category] = []
-    }
-    acc[item.category].push(item)
-    return acc
-  }, {})
-
-  const pendingItems = items.filter((item) => !item.completed)
-  const completedItems = items.filter((item) => item.completed)
-
-  return (
-    <div className="flex min-h-screen flex-col">
-      <header className="px-4 lg:px-6 h-16 flex items-center border-b">
-        <Link className="flex items-center justify-center" href="/">
-          <ShoppingBasket className="h-6 w-6 text-green-600" />
-          <span className="ml-2 text-xl font-bold">FreshTrack</span>
-        </Link>
-        <nav className="ml-auto hidden md:flex gap-4 sm:gap-6">
-          {/* <Link className="text-sm font-medium hover:underline underline-offset-4" href="/">
-          {/* <Link className="text-sm font-medium hover:underline underline-offset-4" href="/">
-            Home
-          </Link> */}
-          <Link className="text-sm font-medium hover:underline underline-offset-4" href="/dashboard">
-            Dashboard
-          </Link>
-          <Link className="text-sm font-medium hover:underline underline-offset-4" href="/recipes">
-            Recipes
-          </Link>
-          {/* <Link className="text-sm font-medium hover:underline underline-offset-4" href="/about">
-            About
-          </Link> */}
-          <Link className="text-sm font-medium hover:underline underline-offset-4" href="/profile">
-            Profile
-          </Link>
-        </nav>
-        <MobileNav />
-      </header>
-      <main className="flex-1 py-6 px-4 md:px-6">
-        <div className="mx-auto max-w-4xl">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-            <div className="flex items-center">
-              <ShoppingCart className="h-6 w-6 text-green-600 mr-2" />
-              <h1 className="text-2xl font-bold">Shopping List</h1>
-            </div>
-            <div className="flex items-center gap-2 mt-2 md:mt-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowCompleted(!showCompleted)}
-                className="flex items-center"
-              >
-                {showCompleted ? (
-                  <>
-                    <ChevronUp className="h-4 w-4 mr-1" />
-                    Hide Completed
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="h-4 w-4 mr-1" />
-                    Show Completed
-                  </>
-                )}
-              </Button>
-              {completedItems.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={clearCompletedItems}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Clear Completed
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-[1fr_300px]">
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Items to Buy ({pendingItems.length})</CardTitle>
-                  <CardDescription>Check off items as you shop</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {Object.keys(groupedItems).length > 0 ? (
-                    Object.entries(groupedItems).map(([category, categoryItems]) => (
-                      <div key={category} className="mb-6 last:mb-0">
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-medium text-sm text-gray-500">{category}</h3>
-                          <Badge variant="outline">{categoryItems.length}</Badge>
-                        </div>
-                        <div className="space-y-2">
-                          {categoryItems
-                            .filter((item) => !item.completed || showCompleted)
-                            .map((item) => (
-                              <div
-                                key={item.id}
-                                className={`flex items-center justify-between p-3 rounded-lg border ${
-                                  item.completed ? "bg-gray-50" : ""
-                                }`}
-                              >
-                                <div className="flex items-center">
-                                  <Checkbox
-                                    id={`item-${item.id}`}
-                                    checked={item.completed}
-                                    onCheckedChange={() => toggleItemCompletion(item.id)}
-                                    className="mr-3"
-                                  />
-                                  <div>
-                                    <Label
-                                      htmlFor={`item-${item.id}`}
-                                      className={`font-medium ${item.completed ? "line-through text-gray-400" : ""}`}
-                                    >
-                                      {item.name}
-                                    </Label>
-                                    <p className="text-xs text-gray-500">{item.quantity}</p>
-                                  </div>
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => removeItem(item.id)}
-                                  className="h-8 w-8 text-gray-400 hover:text-red-500"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                  <span className="sr-only">Remove item</span>
-                                </Button>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8">
-                      <ShoppingCart className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium">Your shopping list is empty</h3>
-                      <p className="text-sm text-gray-500 mt-1">Add some items to get started</p>
-                    </div>
-                  )}
-                </CardContent>
-                <CardFooter className="flex justify-between border-t pt-4">
-                  <div className="text-sm text-gray-500">
-                    {completedItems.length} of {items.length} items completed
-                  </div>
-                  {completedItems.length > 0 && (
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="text-green-600"
-                      onClick={() => setShowCompleted(!showCompleted)}
-                    >
-                      {showCompleted ? "Hide" : "Show"} completed items
-                    </Button>
-                  )}
-                </CardFooter>
-              </Card>
-            </div>
-
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Add New Item</CardTitle>
-                  <CardDescription>Add items to your shopping list</CardDescription>
-                </CardHeader>
-                <form onSubmit={handleAddItem}>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="item-name">Item Name</Label>
-                      <Input
-                        id="item-name"
-                        placeholder="e.g., Milk, Eggs, Bread"
-                        value={newItem.name}
-                        onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="item-category">Category (Optional)</Label>
-                      <Input
-                        id="item-category"
-                        placeholder="e.g., Dairy, Produce"
-                        value={newItem.category}
-                        onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="item-quantity">Quantity (Optional)</Label>
-                      <Input
-                        id="item-quantity"
-                        placeholder="e.g., 1 gallon, 2 lbs"
-                        value={newItem.quantity}
-                        onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
-                      />
-                    </div>
-                  </CardContent>
-                  <CardFooter>
-                    <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Item
-                    </Button>
-                  </CardFooter>
-                </form>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Shopping List Summary</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span>Total Items:</span>
-                    <Badge variant="outline">{items.length}</Badge>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between items-center">
-                    <span>Items to Buy:</span>
-                    <Badge variant="outline">{pendingItems.length}</Badge>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between items-center">
-                    <span>Completed:</span>
-                    <Badge variant="outline">{completedItems.length}</Badge>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between items-center">
-                    <span>Categories:</span>
-                    <Badge variant="outline">{Object.keys(groupedItems).length}</Badge>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      if (pendingItems.length === 0) {
-                        toast({
-                          title: "All items completed",
-                          description: "Your shopping list is complete!",
-                        })
-                      } else {
-                        toast({
-                          title: "Items remaining",
-                          description: `You still have ${pendingItems.length} items to buy.`,
-                        })
-                      }
-                    }}
-                  >
-                    <Check className="h-4 w-4 mr-2" />
-                    Mark All as Complete
-                  </Button>
-                </CardFooter>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </main>
-      <Footer/>
-      {/* <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t">
-        <p className="text-xs text-gray-500">© 2024 FreshTrack. All rights reserved.</p>
-        <nav className="sm:ml-auto flex gap-4 sm:gap-6">
-          <Link className="text-xs hover:underline underline-offset-4" href="#">
-            Terms of Service
-          </Link>
-          <Link className="text-xs hover:underline underline-offset-4" href="#">
-            Privacy
-          </Link>
-        </nav>
-      </footer> */}
-    </div>
-  )
+interface PastTrip {
+  id: number;
+  name: string;
+  date: string;
+  items: { name: string; category: string; quantity: string }[];
+  totalSaved: number;
+  market: string;
 }
 
+const PAST_TRIPS_INIT: PastTrip[] = [
+  {
+    id: 1,
+    name: "Weekly Market Run",
+    date: "Mar 30, 2026",
+    items: [
+      { name: "Rice (50kg bag)", category: "Grains", quantity: "1 bag" },
+      { name: "Tomatoes (1kg)", category: "Vegetables", quantity: "2 kg" },
+      { name: "Cooking Oil (2L)", category: "Cooking Essentials", quantity: "1 bottle" },
+    ],
+    totalSaved: 29.5,
+    market: "Accra Central Market",
+  },
+  {
+    id: 2,
+    name: "Protein Stock-up",
+    date: "Mar 23, 2026",
+    items: [
+      { name: "Chicken (1kg)", category: "Proteins", quantity: "3 kg" },
+      { name: "Eggs (crate×30)", category: "Proteins", quantity: "1 crate" },
+    ],
+    totalSaved: 17,
+    market: "Kaneshie Market",
+  },
+];
+
+type IconComp = React.FC<{ className?: string }>;
+
+const SELLER_NAV = [
+  { href: "/dashboard", icon: LayoutDashboard as IconComp, label: "Dashboard" },
+  { href: "/inventory", icon: Package as IconComp, label: "My Products" },
+  { href: "/orders", icon: ShoppingCart as IconComp, label: "Orders" },
+  { href: "/shopping-list", icon: BarChart3 as IconComp, label: "Price Tracking", active: true },
+  { href: "/recipes", icon: MapPin as IconComp, label: "Markets" },
+  { href: "/profile", icon: User as IconComp, label: "Profile" },
+];
+const BUYER_NAV = [
+  { href: "/dashboard", icon: LayoutDashboard as IconComp, label: "Dashboard" },
+  { href: "/inventory", icon: Package as IconComp, label: "Browse Products" },
+  { href: "/shopping-list", icon: ShoppingCart as IconComp, label: "Shopping List", active: true },
+  { href: "/orders", icon: Heart as IconComp, label: "Saved Items" },
+  { href: "/profile", icon: User as IconComp, label: "Profile" },
+];
+
+/* ─── root ─────────────────────────────────────────────────────── */
+export default function ShoppingListPage() {
+  const [role, setRole] = useState<string | null>(null);
+  useEffect(() => { setRole(getUserRole() || "buyer"); }, []);
+  if (!role) return <div className="flex h-screen items-center justify-center"><div className="h-8 w-8 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin" /></div>;
+  if (role === "buyer") return <Suspense><BuyerShoppingList /></Suspense>;
+  return <SellerPriceTracking />;
+}
+
+/* ═══════════════════════ SELLER PRICE TRACKING ═════════════════ */
+function SellerPriceTracking() {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("All");
+  const [alerts, setAlerts] = useState(PRICE_ALERTS_INIT);
+  const [newAlertProduct, setNewAlertProduct] = useState("");
+  const [newAlertTarget, setNewAlertTarget] = useState("");
+  const [removeAlert, setRemoveAlert] = useState<number | null>(null);
+  const [addAlertOpen, setAddAlertOpen] = useState(false);
+
+  const categories = ["All", ...Array.from(new Set(PRICE_HISTORY.map(p => p.category)))];
+  const filtered = PRICE_HISTORY.filter(p =>
+    (categoryFilter === "All" || p.category === categoryFilter) &&
+    (p.product.toLowerCase().includes(search.toLowerCase()) || p.market.toLowerCase().includes(search.toLowerCase()))
+  );
+
+  function addAlert() {
+    if (!newAlertProduct.trim()) return;
+    setAlerts(prev => [...prev, { id: Date.now(), product: newAlertProduct, condition: `below GH₵${newAlertTarget || "0"}`, current: parseFloat(newAlertTarget) || 0, target: parseFloat(newAlertTarget) || 0 }]);
+    setNewAlertProduct(""); setNewAlertTarget(""); setAddAlertOpen(false);
+  }
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
+      <SidebarComp open={sidebarOpen} setOpen={setSidebarOpen} nav={SELLER_NAV} panelLabel="Seller Panel" />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <TopBarComp search={search} setSearch={setSearch} placeholder="Search products, markets…" />
+        <main className="flex-1 overflow-y-auto p-6 space-y-5">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Price Tracking</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Monitor price movements and set alerts for your market</p>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { label: "Price Records", value: PRICE_HISTORY.length, change: "+12.4% vs last week", up: true, Icon: BarChart3 as IconComp, bg: "bg-emerald-50 dark:bg-emerald-900/20", ic: "text-emerald-600 dark:text-emerald-400" },
+              { label: "Price Increases", value: PRICE_HISTORY.filter(p => p.up).length, change: "Products went up", up: false, Icon: TrendingUp as IconComp, bg: "bg-red-50 dark:bg-red-900/20", ic: "text-red-600 dark:text-red-400" },
+              { label: "Price Drops", value: PRICE_HISTORY.filter(p => !p.up).length, change: "Products went down", up: true, Icon: TrendingDown as IconComp, bg: "bg-blue-50 dark:bg-blue-900/20", ic: "text-blue-600 dark:text-blue-400" },
+              { label: "Active Alerts", value: alerts.length, change: "Monitoring", up: true, Icon: BellIcon as IconComp, bg: "bg-amber-50 dark:bg-amber-900/20", ic: "text-amber-600 dark:text-amber-400" },
+            ].map(({ label, value, change, up, Icon, bg, ic }) => (
+              <div key={label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{label}</span>
+                  <span className={`p-2 rounded-lg ${bg}`}><Icon className={`h-4 w-4 ${ic}`} /></span>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
+                  <p className={`text-xs mt-1 flex items-center gap-1 ${up ? "text-emerald-600" : "text-amber-500"}`}>
+                    {up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}{change}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid lg:grid-cols-3 gap-6">
+            {/* Price History Table */}
+            <div className="lg:col-span-2 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800 gap-3">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Recent Price Changes</h2>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {categories.map(cat => (
+                    <button key={cat} onClick={() => setCategoryFilter(cat)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${categoryFilter === cat ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200"}`}>
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 dark:bg-gray-800/50">
+                      {["Product","Category","Old Price","New Price","Change","Market","Date"].map(h => (
+                        <th key={h} className="text-left text-xs font-medium text-gray-400 uppercase tracking-wide px-5 py-3">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {filtered.map(p => (
+                      <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
+                        <td className="px-5 py-3.5 font-medium text-gray-900 dark:text-white whitespace-nowrap">{p.product}</td>
+                        <td className="px-5 py-3.5 text-gray-500">{p.category}</td>
+                        <td className="px-5 py-3.5 text-gray-500 line-through">GH₵{p.oldPrice}</td>
+                        <td className="px-5 py-3.5 font-semibold text-gray-800 dark:text-gray-100">GH₵{p.newPrice}</td>
+                        <td className="px-5 py-3.5"><span className={`flex items-center gap-1 text-xs font-semibold ${p.up ? "text-emerald-600" : "text-red-500"}`}>{p.up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}{p.change}</span></td>
+                        <td className="px-5 py-3.5 text-gray-500 truncate max-w-[120px]">{p.market}</td>
+                        <td className="px-5 py-3.5 text-gray-400 text-xs whitespace-nowrap">{p.date}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Price Alerts */}
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Price Alerts</h2>
+                <button onClick={() => setAddAlertOpen(!addAlertOpen)} className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-medium">
+                  <Plus className="h-3.5 w-3.5" /> Add Alert
+                </button>
+              </div>
+
+              {addAlertOpen && (
+                <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-2">
+                  <input value={newAlertProduct} onChange={e => setNewAlertProduct(e.target.value)} placeholder="Product name" className="w-full px-3 py-1.5 text-sm bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" />
+                  <input value={newAlertTarget} onChange={e => setNewAlertTarget(e.target.value)} type="number" placeholder="Target price (GH₵)" className="w-full px-3 py-1.5 text-sm bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" />
+                  <div className="flex gap-2">
+                    <button onClick={addAlert} className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-lg transition-colors">Add</button>
+                    <button onClick={() => setAddAlertOpen(false)} className="flex-1 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-lg transition-colors">Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {alerts.map(a => (
+                  <div key={a.id} className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30">
+                    <AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{a.product}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Notify when {a.condition}</p>
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Current: GH₵{a.current}</p>
+                    </div>
+                    <button aria-label="Remove alert" onClick={() => setRemoveAlert(a.id)} className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0"><Trash2 className="h-3.5 w-3.5" /></button>
+                  </div>
+                ))}
+                {alerts.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No active alerts</p>}
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+
+      <ConfirmDialog open={removeAlert !== null} title="Remove Alert" description="Remove this price alert? You will no longer receive notifications." confirmLabel="Remove" variant="warning" onConfirm={() => { setAlerts(prev => prev.filter(a => a.id !== removeAlert)); setRemoveAlert(null); }} onCancel={() => setRemoveAlert(null)} />
+    </div>
+  );
+}
+
+/* ═══════════════════════ BUYER SHOPPING LIST ════════════════════ */
+function BuyerShoppingList() {
+  const searchParams = useSearchParams();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [search, setSearch] = useState("");
+  const [items, setItems] = useState(SHOPPING_LIST_INIT);
+  const [newName, setNewName] = useState("");
+  const [newQty, setNewQty] = useState("");
+  const [clearConfirm, setClearConfirm] = useState(false);
+  const [activeTab, setActiveTab] = useState<"current" | "past">("current");
+  const [pastTrips, setPastTrips] = useState<PastTrip[]>(PAST_TRIPS_INIT);
+  const [archiveConfirm, setArchiveConfirm] = useState(false);
+  const [tripName, setTripName] = useState("");
+  const [deleteTripId, setDeleteTripId] = useState<number | null>(null);
+  const [reuseTrip, setReuseTrip] = useState<PastTrip | null>(null);
+
+  const pending = items.filter(i => !i.checked);
+  const checked = items.filter(i => i.checked);
+  const filtered = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
+
+  const savingsItems = items
+    .map(item => { const p = PRODUCT_PRICES[item.name]; return p ? { name: item.name, saved: p.avgPrice - p.lowestPrice } : null; })
+    .filter((x): x is { name: string; saved: number } => x !== null);
+  const totalSavings = savingsItems.reduce((s, x) => s + x.saved, 0);
+
+  function addItem() {
+    if (!newName.trim()) return;
+    setItems(prev => [...prev, { id: Date.now(), name: newName.trim(), category: "Other", quantity: newQty.trim() || "1", checked: false }]);
+    setNewName(""); setNewQty("");
+  }
+  function toggle(id: number) { setItems(prev => prev.map(i => i.id === id ? { ...i, checked: !i.checked } : i)); }
+  function remove(id: number) { setItems(prev => prev.filter(i => i.id !== id)); }
+  function clearChecked() { setItems(prev => prev.filter(i => !i.checked)); setClearConfirm(false); }
+
+  function archiveTrip() {
+    const name = tripName.trim() || `Market Trip – ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
+    setPastTrips(prev => [{
+      id: Date.now(), name,
+      date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+      items: items.map(({ name, category, quantity }) => ({ name, category, quantity })),
+      totalSaved: parseFloat(totalSavings.toFixed(2)),
+      market: "Accra Central Market",
+    }, ...prev]);
+    setItems([]); setArchiveConfirm(false); setTripName(""); setActiveTab("past");
+  }
+
+  function reuseList(trip: PastTrip) {
+    setItems(trip.items.map((item, i) => ({ id: Date.now() + i, ...item, checked: false })));
+    setReuseTrip(null); setActiveTab("current");
+  }
+
+  // Auto-add item from ?add= URL param (e.g. navigating from Saved Items)
+  useEffect(() => {
+    const name = searchParams.get("add");
+    if (!name) return;
+    setItems(prev => {
+      if (prev.some(i => i.name === name)) return prev;
+      return [...prev, { id: Date.now(), name, category: "Other", quantity: "1", checked: false }];
+    });
+  }, [searchParams]);
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
+      <SidebarComp open={sidebarOpen} setOpen={setSidebarOpen} nav={BUYER_NAV} panelLabel="Buyer Panel" />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <TopBarComp search={search} setSearch={setSearch} placeholder="Search shopping list…" />
+        <main className="flex-1 overflow-y-auto p-6 space-y-5">
+
+          {/* Header */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Shopping List</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                {activeTab === "current"
+                  ? `Plan your market trip · ${pending.length} item${pending.length !== 1 ? "s" : ""} remaining`
+                  : `${pastTrips.length} saved trip${pastTrips.length !== 1 ? "s" : ""} · reuse any list below`}
+              </p>
+            </div>
+            {activeTab === "current" && checked.length > 0 && (
+              <button onClick={() => setClearConfirm(true)} className="text-xs text-red-500 hover:underline">Clear done ({checked.length})</button>
+            )}
+          </div>
+
+          {/* Tabs */}
+          <div className="flex items-center gap-1 border-b border-gray-200 dark:border-gray-800">
+            {(["current", "past"] as const).map(tab => (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === tab
+                    ? "border-emerald-600 text-emerald-600 dark:text-emerald-400"
+                    : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                }`}>
+                {tab === "current" ? "Current List" : `Past Trips (${pastTrips.length})`}
+              </button>
+            ))}
+          </div>
+
+          {activeTab === "current" ? (
+            <>
+              {/* Stats */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { label: "Total Items", value: items.length, Icon: ShoppingCart as IconComp, bg: "bg-blue-50 dark:bg-blue-900/20", ic: "text-blue-600 dark:text-blue-400" },
+                  { label: "Remaining", value: pending.length, Icon: Package as IconComp, bg: "bg-amber-50 dark:bg-amber-900/20", ic: "text-amber-600 dark:text-amber-400" },
+                  { label: "Checked Off", value: checked.length, Icon: CheckCircle as IconComp, bg: "bg-emerald-50 dark:bg-emerald-900/20", ic: "text-emerald-600 dark:text-emerald-400" },
+                  { label: "Est. Savings", value: `GH₵${totalSavings.toFixed(2)}`, Icon: TrendingDown as IconComp, bg: "bg-violet-50 dark:bg-violet-900/20", ic: "text-violet-600 dark:text-violet-400" },
+                ].map(({ label, value, Icon, bg, ic }) => (
+                  <div key={label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 flex items-center gap-4">
+                    <span className={`p-3 rounded-xl ${bg}`}><Icon className={`h-5 w-5 ${ic}`} /></span>
+                    <div><p className="text-xl font-bold text-gray-900 dark:text-white">{value}</p><p className="text-xs text-gray-500">{label}</p></div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid lg:grid-cols-3 gap-6">
+                {/* Items */}
+                <div className="lg:col-span-2 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+                  <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Items</h2>
+                  {filtered.length === 0 ? (
+                    <div className="flex flex-col items-center py-10 text-gray-400">
+                      <ShoppingCart className="h-10 w-10 mb-2 opacity-30" />
+                      <p className="text-sm">Your list is empty. Add items using the form →</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {filtered.map(item => {
+                        const price = PRODUCT_PRICES[item.name];
+                        return (
+                          <div key={item.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-colors ${
+                            item.checked
+                              ? "bg-gray-50 dark:bg-gray-800/40 border-gray-100 dark:border-gray-800 opacity-60"
+                              : "bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800 hover:border-emerald-200 dark:hover:border-emerald-800"
+                          }`}>
+                            <input type="checkbox" checked={item.checked} onChange={() => toggle(item.id)}
+                              className="h-4 w-4 accent-emerald-600 rounded flex-shrink-0"
+                              aria-label={`Mark ${item.name} as ${item.checked ? "incomplete" : "complete"}`} />
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm font-medium text-gray-800 dark:text-gray-200 ${item.checked ? "line-through text-gray-400" : ""}`}>{item.name}</p>
+                              <p className="text-xs text-gray-400">{item.category}</p>
+                            </div>
+                            {price && !item.checked && (
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">GH₵{price.lowestPrice}</span>
+                                <span className={`flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                                  price.up ? "bg-red-50 dark:bg-red-900/20 text-red-500" : "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600"
+                                }`}>
+                                  {price.up ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}{price.change}
+                                </span>
+                              </div>
+                            )}
+                            <span className="text-xs text-gray-400 mx-1">{item.quantity}</span>
+                            <button aria-label="Remove item" onClick={() => remove(item.id)}
+                              className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-300 hover:text-red-500 transition-colors">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Right column */}
+                <div className="space-y-4">
+                  {/* Add item */}
+                  <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+                    <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Add Item</h2>
+                    <div className="space-y-2">
+                      <input value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key === "Enter" && addItem()} placeholder="Item name (e.g. Tomatoes)" className="w-full px-3 py-2 text-sm bg-gray-100 dark:bg-gray-800 rounded-lg border-0 outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" />
+                      <input value={newQty} onChange={e => setNewQty(e.target.value)} placeholder="Quantity (e.g. 2 kg)" className="w-full px-3 py-2 text-sm bg-gray-100 dark:bg-gray-800 rounded-lg border-0 outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" />
+                      <button onClick={addItem} className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors">
+                        <Plus className="h-4 w-4" /> Add to List
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Summary + archive */}
+                  <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+                    <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Summary</h2>
+                    <div className="space-y-0">
+                      {[["Total items", items.length], ["Remaining", pending.length], ["Completed", checked.length]].map(([k, v]) => (
+                        <div key={String(k)} className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
+                          <span className="text-sm text-gray-500">{k}</span>
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white">{v}</span>
+                        </div>
+                      ))}
+                      {totalSavings > 0 && (
+                        <div className="flex justify-between py-2">
+                          <span className="text-sm text-gray-500">Est. savings</span>
+                          <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">GH₵{totalSavings.toFixed(2)}</span>
+                        </div>
+                      )}
+                    </div>
+                    {pending.length === 0 && items.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        <div className="flex items-center gap-2 p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+                          <CheckCircle className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+                          <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">All items checked off!</p>
+                        </div>
+                        <input value={tripName} onChange={e => setTripName(e.target.value)}
+                          placeholder="Name this trip (optional)"
+                          className="w-full px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-800 rounded-lg border-0 outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" />
+                        <button onClick={() => setArchiveConfirm(true)}
+                          className="w-full flex items-center justify-center gap-1.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors">
+                          <Archive className="h-3.5 w-3.5" /> Save to Past Trips
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Savings breakdown */}
+                  {savingsItems.length > 0 && (
+                    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+                      <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                        <TrendingDown className="h-4 w-4 text-emerald-500" /> Savings Breakdown
+                      </h2>
+                      <div className="space-y-2">
+                        {savingsItems.map(s => (
+                          <div key={s.name} className="flex justify-between items-center">
+                            <span className="text-xs text-gray-500 dark:text-gray-400 truncate pr-2">{s.name}</span>
+                            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex-shrink-0">save GH₵{s.saved.toFixed(2)}</span>
+                          </div>
+                        ))}
+                        <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex justify-between">
+                          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Total</span>
+                          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">GH₵{totalSavings.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          ) : (
+            /* Past Trips Tab */
+            <div className="space-y-4">
+              {pastTrips.length === 0 ? (
+                <div className="flex flex-col items-center py-20 text-gray-400">
+                  <Archive className="h-12 w-12 mb-3 opacity-30" />
+                  <p className="text-sm">No past trips yet. Complete and save your current list to record it here.</p>
+                  <button onClick={() => setActiveTab("current")} className="mt-3 text-xs text-emerald-600 dark:text-emerald-400 hover:underline">Go to current list</button>
+                </div>
+              ) : (
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {pastTrips.map(trip => (
+                    <div key={trip.id} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 flex flex-col gap-3 hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">{trip.name}</h3>
+                          <p className="text-xs text-gray-400 mt-0.5">{trip.date} · {trip.market}</p>
+                        </div>
+                        <button aria-label="Delete trip" onClick={() => setDeleteTripId(trip.id)}
+                          className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex-shrink-0">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <div className="space-y-1.5">
+                        {trip.items.slice(0, 4).map(item => (
+                          <div key={item.name} className="flex items-center gap-2">
+                            <CheckCircle className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                            <span className="text-xs text-gray-600 dark:text-gray-400 truncate flex-1">{item.name}</span>
+                            <span className="text-[10px] text-gray-400 flex-shrink-0">{item.quantity}</span>
+                          </div>
+                        ))}
+                        {trip.items.length > 4 && <p className="text-xs text-gray-400 pl-5">+{trip.items.length - 4} more items</p>}
+                      </div>
+                      <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800">
+                        <span className="text-xs text-gray-500">{trip.items.length} items</span>
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Saved GH₵{trip.totalSaved}</span>
+                      </div>
+                      <button onClick={() => setReuseTrip(trip)}
+                        className="flex items-center justify-center gap-1.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition-colors">
+                        <RotateCcw className="h-3 w-3" /> Reuse This List
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </main>
+      </div>
+
+      <ConfirmDialog open={clearConfirm} title="Clear Completed Items" description={`Remove ${checked.length} checked item${checked.length !== 1 ? "s" : ""} from your list?`} confirmLabel="Clear Items" variant="warning" onConfirm={clearChecked} onCancel={() => setClearConfirm(false)} />
+      <ConfirmDialog open={archiveConfirm} title="Save Trip to History" description={`Save "${tripName.trim() || "this trip"}" to your past trips and clear the current list?`} confirmLabel="Save Trip" variant="default" onConfirm={archiveTrip} onCancel={() => setArchiveConfirm(false)} />
+      <ConfirmDialog open={reuseTrip !== null} title="Reuse This List" description={`Load all items from "${reuseTrip?.name}" into your current list? Your existing items will be replaced.`} confirmLabel="Reuse List" variant="default" onConfirm={() => reuseList(reuseTrip!)} onCancel={() => setReuseTrip(null)} />
+      <ConfirmDialog open={deleteTripId !== null} title="Delete Trip" description="Remove this trip from your history? This cannot be undone." confirmLabel="Delete" variant="warning" onConfirm={() => { setPastTrips(prev => prev.filter(t => t.id !== deleteTripId)); setDeleteTripId(null); }} onCancel={() => setDeleteTripId(null)} />
+    </div>
+  );
+}
+
+/* ─── shared ────────────────────────────────────────────────────── */
+function SidebarComp({ open, setOpen, nav, panelLabel }: {
+  open: boolean;
+  setOpen: (v: boolean) => void;
+  nav: { href: string; icon: IconComp; label: string; active?: boolean }[];
+  panelLabel: string;
+}) {
+  return (
+    <aside className={`${open ? "w-56" : "w-16"} flex-shrink-0 bg-gray-900 text-white flex flex-col transition-all duration-300 z-20`}>
+      <div className="h-14 flex items-center px-4 border-b border-gray-800 gap-2">
+        <div className="h-8 w-8 flex-shrink-0 flex items-center justify-center rounded-lg bg-emerald-600"><TrendingUp className="h-4 w-4 text-white" /></div>
+        {open && <span className="text-base font-bold tracking-tight">Market<span className="text-emerald-400">Wise</span></span>}
+        <button aria-label="Toggle sidebar" className="ml-auto text-gray-400 hover:text-white" onClick={() => setOpen(!open)}><Menu className="h-4 w-4" /></button>
+      </div>
+      {open && <div className="px-3 pt-4 pb-1"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">{panelLabel}</span></div>}
+      <nav className="flex-1 py-2 space-y-1 px-2 overflow-y-auto">
+        {nav.map(({ href, icon: Icon, label, active }) => (
+          <Link key={href} href={href} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${active ? "bg-emerald-600 text-white" : "text-gray-400 hover:bg-gray-800 hover:text-white"}`}>
+            <Icon className="h-4 w-4 flex-shrink-0" />{open && <span>{label}</span>}
+          </Link>
+        ))}
+      </nav>
+      <div className="p-2 border-t border-gray-800">
+        <Link href="/signout" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400 hover:bg-red-900/40 hover:text-red-400 transition-colors">
+          <LogOut className="h-4 w-4 flex-shrink-0" />{open && <span>Logout</span>}
+        </Link>
+      </div>
+    </aside>
+  );
+}
+
+function TopBarComp({ search, setSearch, placeholder }: { search: string; setSearch: (v: string) => void; placeholder: string }) {
+  return (
+    <header className="h-14 bg-white dark:bg-gray-900 border-b dark:border-gray-800 flex items-center px-6 gap-4 flex-shrink-0 shadow-sm">
+      <div className="relative flex-1 max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder={placeholder}
+          className="w-full pl-9 pr-4 py-2 text-sm bg-gray-100 dark:bg-gray-800 rounded-lg border-0 outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" />
+      </div>
+      <div className="ml-auto"><button aria-label="Notifications" className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"><Bell className="h-5 w-5" /></button></div>
+    </header>
+  );
+}

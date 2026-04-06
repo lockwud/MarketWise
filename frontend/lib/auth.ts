@@ -1,5 +1,3 @@
-import { cookies } from "next/headers";
-
 // Set authentication cookies
 export const setAuthCookies = (token: string, role: string) => {
   // Set cookies with appropriate options
