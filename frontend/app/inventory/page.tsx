@@ -12,154 +12,12 @@ import {
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CreateModal, FormField, inputCls, selectCls } from "@/components/ui/create-modal";
 import { PageBar, ModalPager } from "@/components/ui/page-bar";
+import type { Product, AggregatedProduct } from "@/lib/api/inventory";
+import type { Market } from "@/lib/api/markets";
 
-/* ─── static data ─────────────────────────────────────────────── */
+/* ─── static constants ─────────────────────────────────────────── */
 const CATEGORIES = ["Grains","Vegetables","Proteins","Cooking Essentials","Fruits","Dairy","Beverages","Smartphones","Laptops","Desktops"];
 const UNITS = ["kg","bag","bunch","litre","piece","crate","dozen","unit"];
-const MARKETS = ["Accra Central Market","Kumasi Central Market","Madina Market","Takoradi Market","Kaneshie Market"];
-
-const SELLER_PRODUCTS = [
-  { id: 1, name: "Rice (5kg)", category: "Grains", price: 45, unit: "bag", stock: 80, market: "Accra Central Market", status: "Active", change: "+7.1%", up: true, description: "Premium long-grain rice, freshly milled.", image: "" },
-  { id: 2, name: "Cooking Oil (2L)", category: "Cooking Essentials", price: 38.5, unit: "litre", stock: 35, market: "Kumasi Central Market", status: "Active", change: "-3.8%", up: false, description: "Refined sunflower cooking oil.", image: "" },
-  { id: 3, name: "Tomatoes (1kg)", category: "Vegetables", price: 12, unit: "kg", stock: 12, market: "Takoradi Market", status: "Alert", change: "+4.3%", up: true, description: "Fresh locally-grown tomatoes.", image: "" },
-  { id: 4, name: "Onions (1kg)", category: "Vegetables", price: 8, unit: "kg", stock: 50, market: "Accra Central Market", status: "Active", change: "0%", up: true, description: "Fresh red onions, bulk available.", image: "" },
-  { id: 5, name: "Chicken (1kg)", category: "Proteins", price: 32, unit: "kg", stock: 20, market: "Kumasi Central Market", status: "Active", change: "-8.6%", up: false, description: "Fresh dressed chicken, chilled.", image: "" },
-  { id: 6, name: "iPhone 16 Pro Max (256GB)", category: "Smartphones", price: 8500, unit: "unit", stock: 8, market: "Accra Central Market", status: "Active", change: "+3.2%", up: true, description: "Apple iPhone 16 Pro Max, 256GB, Titanium — unlocked.", image: "" },
-  { id: 7, name: "Samsung Galaxy S24 Ultra", category: "Smartphones", price: 7200, unit: "unit", stock: 12, market: "Kumasi Central Market", status: "Active", change: "-2.1%", up: false, description: "Samsung Galaxy S24 Ultra, 256GB, Titanium Black.", image: "" },
-  { id: 8, name: "Samsung Galaxy A55 5G", category: "Smartphones", price: 3200, unit: "unit", stock: 25, market: "Madina Market", status: "Active", change: "+1.8%", up: true, description: "Samsung Galaxy A55 5G, 128GB, Awesome Navy.", image: "" },
-  { id: 9, name: "MacBook Air M3 (13\")", category: "Laptops", price: 13500, unit: "unit", stock: 5, market: "Accra Central Market", status: "Alert", change: "+5.1%", up: true, description: "Apple MacBook Air 13\" M3 chip, 8GB RAM, 256GB SSD.", image: "" },
-  { id: 10, name: "HP Pavilion 15 (Core i7)", category: "Laptops", price: 6800, unit: "unit", stock: 10, market: "Kaneshie Market", status: "Active", change: "-4.3%", up: false, description: "HP Pavilion 15.6\", Intel Core i7-13th Gen, 16GB RAM, 512GB SSD.", image: "" },
-  { id: 11, name: "Lenovo IdeaPad 3 (Core i5)", category: "Laptops", price: 5400, unit: "unit", stock: 14, market: "Kumasi Central Market", status: "Active", change: "+2.4%", up: true, description: "Lenovo IdeaPad 3, Core i5-12th Gen, 8GB RAM, 256GB SSD.", image: "" },
-  { id: 12, name: "Dell OptiPlex 7010 (i5)", category: "Desktops", price: 4200, unit: "unit", stock: 7, market: "Accra Central Market", status: "Active", change: "+2.7%", up: true, description: "Dell OptiPlex 7010 SFF, Core i5-13th Gen, 16GB RAM, 256GB SSD.", image: "" },
-  { id: 13, name: "HP ProDesk 400 (Ryzen 5)", category: "Desktops", price: 3900, unit: "unit", stock: 9, market: "Kaneshie Market", status: "Active", change: "-1.5%", up: false, description: "HP ProDesk 400 G9 Mini, AMD Ryzen 5, 8GB RAM, 256GB SSD.", image: "" },
-];
-
-const BUYER_PRODUCTS = [
-  { id: 1, name: "Rice (50kg bag)", category: "Grains", sellers: 8, avgPrice: 290, lowestPrice: 265, highestPrice: 320, market: "Accra Central Market", change: "+2.1%", up: true, rating: 4.5, description: "Premium basmati/long-grain rice, 50kg bulk bag." },
-  { id: 2, name: "Cooking Oil (2L)", category: "Cooking Essentials", sellers: 12, avgPrice: 38.5, lowestPrice: 34, highestPrice: 45, market: "Kumasi Central Market", change: "-3.8%", up: false, rating: 4.2, description: "Refined vegetable cooking oil, 2L bottle." },
-  { id: 3, name: "Tomatoes (1kg)", category: "Vegetables", sellers: 20, avgPrice: 12, lowestPrice: 9, highestPrice: 15, market: "Takoradi Market", change: "+4.3%", up: true, rating: 3.9, description: "Fresh ripe tomatoes from local farms." },
-  { id: 4, name: "Onions (1kg)", category: "Vegetables", sellers: 15, avgPrice: 8, lowestPrice: 7, highestPrice: 11, market: "Madina Market", change: "0%", up: true, rating: 4.0, description: "Medium-sized red onions, firm and fresh." },
-  { id: 5, name: "Chicken (1kg)", category: "Proteins", sellers: 6, avgPrice: 32, lowestPrice: 28, highestPrice: 38, market: "Accra Central Market", change: "-8.6%", up: false, rating: 4.7, description: "Broiler chicken, freshly dressed per kg." },
-  { id: 6, name: "Yam (medium)", category: "Vegetables", sellers: 9, avgPrice: 18, lowestPrice: 15, highestPrice: 22, market: "Kumasi Central Market", change: "+1.5%", up: true, rating: 4.1, description: "Medium-sized water yam, perfect for pounding or frying." },
-  { id: 7, name: "Eggs (crate×30)", category: "Proteins", sellers: 11, avgPrice: 55, lowestPrice: 50, highestPrice: 62, market: "Kaneshie Market", change: "+5.4%", up: true, rating: 4.3, description: "Fresh farm eggs, crate of 30." },
-  // Electronics — Smartphones
-  { id: 8, name: "iPhone 16 Pro Max (256GB)", category: "Smartphones", sellers: 5, avgPrice: 9800, lowestPrice: 8500, highestPrice: 11500, market: "Accra Central Market", change: "+3.2%", up: true, rating: 4.8, description: "Apple iPhone 16 Pro Max 256GB — unlocked for all networks." },
-  { id: 9, name: "Samsung Galaxy S24 Ultra", category: "Smartphones", sellers: 7, avgPrice: 8400, lowestPrice: 7200, highestPrice: 10000, market: "Kumasi Central Market", change: "-2.1%", up: false, rating: 4.6, description: "Samsung Galaxy S24 Ultra 256GB — AI-powered flagship." },
-  { id: 10, name: "Samsung Galaxy A55 5G", category: "Smartphones", sellers: 9, avgPrice: 4100, lowestPrice: 3200, highestPrice: 5200, market: "Madina Market", change: "+1.8%", up: true, rating: 4.3, description: "Samsung Galaxy A55 5G 128GB — premium mid-range." },
-  // Electronics — Laptops
-  { id: 11, name: "MacBook Air M3 (13\")", category: "Laptops", sellers: 4, avgPrice: 15800, lowestPrice: 13500, highestPrice: 18500, market: "Accra Central Market", change: "+5.1%", up: true, rating: 4.9, description: "Apple MacBook Air 13\" M3 chip, 8GB RAM, 256GB SSD." },
-  { id: 12, name: "HP Pavilion 15 (Core i7)", category: "Laptops", sellers: 6, avgPrice: 8200, lowestPrice: 6800, highestPrice: 10500, market: "Kaneshie Market", change: "-4.3%", up: false, rating: 4.4, description: "HP Pavilion 15.6\" Core i7-13th Gen, 16GB RAM, 512GB SSD." },
-  { id: 13, name: "Lenovo IdeaPad 3 (Core i5)", category: "Laptops", sellers: 8, avgPrice: 6500, lowestPrice: 5400, highestPrice: 7800, market: "Kumasi Central Market", change: "+2.4%", up: true, rating: 4.2, description: "Lenovo IdeaPad 3 Core i5-12th Gen, 8GB RAM, 256GB SSD." },
-  // Electronics — Desktops
-  { id: 14, name: "Dell OptiPlex 7010 (i5)", category: "Desktops", sellers: 5, avgPrice: 5500, lowestPrice: 4200, highestPrice: 7000, market: "Accra Central Market", change: "+2.7%", up: true, rating: 4.2, description: "Dell OptiPlex 7010 SFF, Core i5-13th Gen, 16GB RAM." },
-  { id: 15, name: "HP ProDesk 400 (Ryzen 5)", category: "Desktops", sellers: 4, avgPrice: 4800, lowestPrice: 3900, highestPrice: 6200, market: "Kaneshie Market", change: "-1.5%", up: false, rating: 4.0, description: "HP ProDesk 400 G9 Mini, AMD Ryzen 5, 8GB RAM, 256GB SSD." },
-];
-
-/* ─── seller breakdown data (buyer view) ──────────────────────── */
-const BUYER_SELLERS: Record<number, { id: number; seller: string; market: string; price: number; distance: string; rating: number; inStock: boolean }[]> = {
-  1: [
-    { id: 1, seller: "Mensah Grains", market: "Accra Central Market", price: 265, distance: "1.2km", rating: 4.7, inStock: true },
-    { id: 2, seller: "Aba Agro Stores", market: "Kaneshie Market", price: 275, distance: "3.8km", rating: 4.3, inStock: true },
-    { id: 3, seller: "Golden Harvest", market: "Madina Market", price: 280, distance: "6.1km", rating: 4.1, inStock: true },
-    { id: 4, seller: "Nkrumah Supplies", market: "Accra Central Market", price: 290, distance: "1.5km", rating: 3.9, inStock: true },
-    { id: 5, seller: "TwinStar Traders", market: "Kaneshie Market", price: 295, distance: "4.0km", rating: 4.5, inStock: false },
-    { id: 6, seller: "Akosua Wholesalers", market: "Tema Market", price: 310, distance: "18km", rating: 4.2, inStock: true },
-    { id: 7, seller: "BulkFoods GH", market: "Madina Market", price: 315, distance: "6.5km", rating: 4.0, inStock: true },
-    { id: 8, seller: "Bright Commodities", market: "Agbogbloshie", price: 320, distance: "2.3km", rating: 3.7, inStock: true },
-  ],
-  2: [
-    { id: 1, seller: "Healthy Oils Co.", market: "Kumasi Central Market", price: 34, distance: "5.3km", rating: 4.6, inStock: true },
-    { id: 2, seller: "Palmy Essentials", market: "Takoradi Market", price: 36, distance: "12km", rating: 4.0, inStock: true },
-    { id: 3, seller: "Oil & More", market: "Accra Central Market", price: 37, distance: "1.2km", rating: 4.3, inStock: true },
-    { id: 4, seller: "Frytex Supplies", market: "Kaneshie Market", price: 39, distance: "3.8km", rating: 3.8, inStock: true },
-  ],
-  3: [
-    { id: 1, seller: "Fresh Farms GH", market: "Takoradi Market", price: 9, distance: "12km", rating: 4.2, inStock: true },
-    { id: 2, seller: "Veggies Direct", market: "Kumasi Central Market", price: 10, distance: "5.3km", rating: 4.5, inStock: true },
-    { id: 3, seller: "Garden Fresh", market: "Madina Market", price: 11, distance: "6.1km", rating: 3.9, inStock: true },
-    { id: 4, seller: "Tomato Queen", market: "Accra Central Market", price: 12, distance: "1.2km", rating: 4.1, inStock: true },
-  ],
-  4: [
-    { id: 1, seller: "Onion King", market: "Madina Market", price: 7, distance: "6.1km", rating: 4.3, inStock: true },
-    { id: 2, seller: "Spice World", market: "Accra Central Market", price: 8, distance: "1.2km", rating: 4.0, inStock: true },
-    { id: 3, seller: "Fresh Roots GH", market: "Kumasi Central Market", price: 9, distance: "5.3km", rating: 3.7, inStock: true },
-  ],
-  5: [
-    { id: 1, seller: "Poultry Plus", market: "Accra Central Market", price: 28, distance: "1.2km", rating: 4.8, inStock: true },
-    { id: 2, seller: "Chicken Depot", market: "Kaneshie Market", price: 30, distance: "3.8km", rating: 4.5, inStock: true },
-    { id: 3, seller: "Farm Fresh Meats", market: "Madina Market", price: 33, distance: "6.1km", rating: 4.2, inStock: true },
-  ],
-  6: [
-    { id: 1, seller: "Yam Farmers Coop", market: "Kumasi Central Market", price: 15, distance: "5.3km", rating: 4.4, inStock: true },
-    { id: 2, seller: "Root Harvest", market: "Accra Central Market", price: 17, distance: "1.2km", rating: 4.0, inStock: true },
-    { id: 3, seller: "Tuber Traders", market: "Madina Market", price: 19, distance: "6.1km", rating: 3.8, inStock: true },
-  ],
-  7: [
-    { id: 1, seller: "EggMart GH", market: "Kaneshie Market", price: 50, distance: "3.8km", rating: 4.6, inStock: true },
-    { id: 2, seller: "Poultry World", market: "Accra Central Market", price: 52, distance: "1.2km", rating: 4.3, inStock: true },
-    { id: 3, seller: "Fresh Eggs Co.", market: "Kumasi Central Market", price: 55, distance: "5.3km", rating: 4.1, inStock: true },
-    { id: 4, seller: "Daily Farms", market: "Takoradi Market", price: 58, distance: "12km", rating: 3.9, inStock: false },
-  ],
-  // Smartphones
-  8: [
-    { id: 1, seller: "iGhana Store", market: "Accra Central Market", price: 8500, distance: "1.2km", rating: 4.8, inStock: true },
-    { id: 2, seller: "Apple Resellers GH", market: "Kaneshie Market", price: 8900, distance: "3.8km", rating: 4.6, inStock: true },
-    { id: 3, seller: "TechHub Accra", market: "Madina Market", price: 9200, distance: "6.1km", rating: 4.4, inStock: true },
-    { id: 4, seller: "PhoneZone GH", market: "Kumasi Central Market", price: 9500, distance: "5.3km", rating: 4.2, inStock: false },
-    { id: 5, seller: "Elite Gadgets", market: "Accra Central Market", price: 11500, distance: "1.8km", rating: 4.0, inStock: true },
-  ],
-  9: [
-    { id: 1, seller: "Samsung Deals GH", market: "Kumasi Central Market", price: 7200, distance: "5.3km", rating: 4.7, inStock: true },
-    { id: 2, seller: "MobileMart", market: "Accra Central Market", price: 7600, distance: "1.2km", rating: 4.5, inStock: true },
-    { id: 3, seller: "GadgetPro", market: "Kaneshie Market", price: 8000, distance: "3.8km", rating: 4.3, inStock: true },
-    { id: 4, seller: "TechHub Accra", market: "Madina Market", price: 8400, distance: "6.1km", rating: 4.1, inStock: true },
-    { id: 5, seller: "PhoneZone GH", market: "Takoradi Market", price: 9000, distance: "12km", rating: 3.9, inStock: true },
-    { id: 6, seller: "Digital World", market: "Accra Central Market", price: 9500, distance: "2.0km", rating: 3.8, inStock: false },
-    { id: 7, seller: "Elite Gadgets", market: "Kaneshie Market", price: 10000, distance: "4.2km", rating: 4.0, inStock: true },
-  ],
-  10: [
-    { id: 1, seller: "Samsung Deals GH", market: "Madina Market", price: 3200, distance: "6.1km", rating: 4.5, inStock: true },
-    { id: 2, seller: "AfriTech Stores", market: "Accra Central Market", price: 3500, distance: "1.2km", rating: 4.3, inStock: true },
-    { id: 3, seller: "MobileMart", market: "Kumasi Central Market", price: 3800, distance: "5.3km", rating: 4.1, inStock: true },
-    { id: 4, seller: "GadgetPro", market: "Kaneshie Market", price: 4100, distance: "3.8km", rating: 3.9, inStock: true },
-    { id: 5, seller: "TechHub Accra", market: "Takoradi Market", price: 4600, distance: "12km", rating: 4.2, inStock: true },
-  ],
-  // Laptops
-  11: [
-    { id: 1, seller: "iGhana Store", market: "Accra Central Market", price: 13500, distance: "1.2km", rating: 4.9, inStock: true },
-    { id: 2, seller: "Apple Resellers GH", market: "Kaneshie Market", price: 14200, distance: "3.8km", rating: 4.7, inStock: true },
-    { id: 3, seller: "TechHub Accra", market: "Madina Market", price: 15500, distance: "6.1km", rating: 4.5, inStock: false },
-    { id: 4, seller: "Digital World", market: "Kumasi Central Market", price: 18500, distance: "5.3km", rating: 4.2, inStock: true },
-  ],
-  12: [
-    { id: 1, seller: "HP Authorized GH", market: "Kaneshie Market", price: 6800, distance: "3.8km", rating: 4.5, inStock: true },
-    { id: 2, seller: "LaptopCity GH", market: "Accra Central Market", price: 7200, distance: "1.2km", rating: 4.3, inStock: true },
-    { id: 3, seller: "TechHub Accra", market: "Madina Market", price: 8000, distance: "6.1km", rating: 4.1, inStock: true },
-    { id: 4, seller: "CompuMart", market: "Kumasi Central Market", price: 9000, distance: "5.3km", rating: 3.9, inStock: true },
-    { id: 5, seller: "Digital World", market: "Takoradi Market", price: 10500, distance: "12km", rating: 4.0, inStock: false },
-  ],
-  13: [
-    { id: 1, seller: "Lenovo Point GH", market: "Kumasi Central Market", price: 5400, distance: "5.3km", rating: 4.4, inStock: true },
-    { id: 2, seller: "LaptopCity GH", market: "Accra Central Market", price: 5800, distance: "1.2km", rating: 4.2, inStock: true },
-    { id: 3, seller: "CompuMart", market: "Kaneshie Market", price: 6200, distance: "3.8km", rating: 4.0, inStock: true },
-    { id: 4, seller: "TechHub Accra", market: "Madina Market", price: 6800, distance: "6.1km", rating: 3.8, inStock: true },
-    { id: 5, seller: "GadgetPro", market: "Takoradi Market", price: 7200, distance: "12km", rating: 3.7, inStock: true },
-  ],
-  // Desktops
-  14: [
-    { id: 1, seller: "Dell Resellers GH", market: "Accra Central Market", price: 4200, distance: "1.2km", rating: 4.4, inStock: true },
-    { id: 2, seller: "CompuMart", market: "Kaneshie Market", price: 4800, distance: "3.8km", rating: 4.2, inStock: true },
-    { id: 3, seller: "TechHub Accra", market: "Madina Market", price: 5200, distance: "6.1km", rating: 4.0, inStock: true },
-    { id: 4, seller: "Digital World", market: "Kumasi Central Market", price: 6000, distance: "5.3km", rating: 3.9, inStock: false },
-    { id: 5, seller: "LaptopCity GH", market: "Kaneshie Market", price: 7000, distance: "4.0km", rating: 3.7, inStock: true },
-  ],
-  15: [
-    { id: 1, seller: "HP Authorized GH", market: "Kaneshie Market", price: 3900, distance: "3.8km", rating: 4.3, inStock: true },
-    { id: 2, seller: "CompuMart", market: "Accra Central Market", price: 4300, distance: "1.2km", rating: 4.1, inStock: true },
-    { id: 3, seller: "Digital World", market: "Madina Market", price: 4900, distance: "6.1km", rating: 3.9, inStock: true },
-    { id: 4, seller: "AfriTech Stores", market: "Kumasi Central Market", price: 5500, distance: "5.3km", rating: 3.7, inStock: true },
-  ],
-};
 
 /* ─── nav configs ─────────────────────────────────────────────── */
 const SELLER_NAV = [
@@ -182,9 +40,9 @@ const BUYER_NAV = [
 interface ProductForm {
   name: string; category: string; description: string;
   unit: string; stock: string; minStock: string;
-  price: string; comparePrice: string; market: string; location: string;
+  price: string; comparePrice: string; marketId: string; location: string;
 }
-const emptyForm = (): ProductForm => ({ name:"", category:"", description:"", unit:"kg", stock:"", minStock:"", price:"", comparePrice:"", market:"", location:"" });
+const emptyForm = (): ProductForm => ({ name:"", category:"", description:"", unit:"kg", stock:"", minStock:"", price:"", comparePrice:"", marketId:"", location:"" });
 
 /* ─── component ────────────────────────────────────────────────── */
 export default function Inventory() {
@@ -203,40 +61,81 @@ export default function Inventory() {
 /* ════════════════════════════════════════ SELLER ════════════════ */
 function SellerProducts() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [products, setProducts] = useState(SELLER_PRODUCTS);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [markets, setMarkets] = useState<Market[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"list"|"card">("list");
   const [createOpen, setCreateOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<ProductForm>(emptyForm());
-  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
-  const [viewProduct, setViewProduct] = useState<typeof SELLER_PRODUCTS[0] | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [viewProduct, setViewProduct] = useState<Product | null>(null);
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [sellerPage, setSellerPage] = useState(1);
   const [sellerPageSize, setSellerPageSize] = useState(15);
 
+  useEffect(() => {
+    async function load() {
+      try {
+        const [{ fetchProducts }, { fetchMarkets }] = await Promise.all([
+          import("@/lib/api/inventory"),
+          import("@/lib/api/markets"),
+        ]);
+        const [pRes, mRes] = await Promise.all([fetchProducts(), fetchMarkets()]);
+        setProducts((pRes as any).products ?? (pRes as any));
+        setMarkets((mRes as any).markets ?? (mRes as any));
+      } catch (err) { console.error(err); }
+      finally { setLoading(false); }
+    }
+    load();
+  }, []);
+
   const categories = ["All", ...Array.from(new Set(products.map(p => p.category)))];
   const filtered = products.filter(p =>
     (categoryFilter === "All" || p.category === categoryFilter) &&
-    (p.name.toLowerCase().includes(search.toLowerCase()) || p.category.toLowerCase().includes(search.toLowerCase()) || p.market.toLowerCase().includes(search.toLowerCase()))
+    (p.name.toLowerCase().includes(search.toLowerCase()) || p.category.toLowerCase().includes(search.toLowerCase()) || (p.market?.name || "").toLowerCase().includes(search.toLowerCase()))
   );
   const sellerPaged = filtered.slice((sellerPage - 1) * sellerPageSize, sellerPage * sellerPageSize);
 
-  function handleCreate() {
+  async function handleCreate() {
     setSubmitting(true);
-    setTimeout(() => {
-      setProducts(prev => [{
-        id: Date.now(), name: form.name || "New Product", category: form.category || "Grains",
-        price: parseFloat(form.price) || 0, unit: form.unit, stock: parseInt(form.stock) || 0,
-        market: form.market || MARKETS[0], status: "Active", change: "0%", up: true,
-        description: form.description, image: "",
-      }, ...prev]);
-      setForm(emptyForm()); setCreateOpen(false); setSubmitting(false);
-    }, 800);
+    try {
+      const { createProduct } = await import("@/lib/api/inventory");
+      const created = await createProduct({
+        name: form.name,
+        category: form.category,
+        description: form.description,
+        unit: form.unit,
+        stock: parseInt(form.stock) || 0,
+        minStock: parseInt(form.minStock) || 10,
+        price: parseFloat(form.price) || 0,
+        comparePrice: form.comparePrice ? parseFloat(form.comparePrice) : undefined,
+        marketId: form.marketId,
+      });
+      setProducts(prev => [created as Product, ...prev]);
+      setForm(emptyForm()); setCreateOpen(false);
+    } catch (err) { console.error(err); }
+    finally { setSubmitting(false); }
   }
-  function handleDelete(id: number) { setProducts(prev => prev.filter(p => p.id !== id)); setDeleteTarget(null); }
+
+  async function handleDelete(id: string) {
+    try {
+      const { deleteProduct } = await import("@/lib/api/inventory");
+      await deleteProduct(id);
+      setProducts(prev => prev.filter(p => p.id !== id));
+    } catch (err) { console.error(err); }
+    setDeleteTarget(null);
+  }
+
   const f = (k: keyof ProductForm) => (e: React.ChangeEvent<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement>) =>
     setForm(prev => ({ ...prev, [k]: e.target.value }));
+
+  if (loading) return (
+    <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
+      <div className="h-8 w-8 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin" />
+    </div>
+  );
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
@@ -318,40 +217,43 @@ function SellerProducts() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 dark:bg-gray-800/50">
-                      {["Product","Category","Price","Stock","Market","Change","Status","Actions"].map(h => (
+                      {["Product","Category","Price","Stock","Market","Status","Actions"].map(h => (
                         <th key={h} className="text-left text-xs font-medium text-gray-400 uppercase tracking-wide px-5 py-3">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {sellerPaged.map(p => (
-                      <tr key={p.id} onClick={() => setViewProduct(p)} className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors cursor-pointer">
-                        <td className="px-5 py-3.5 font-medium text-gray-900 dark:text-white whitespace-nowrap">{p.name}</td>
-                        <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400">{p.category}</td>
-                        <td className="px-5 py-3.5 font-semibold text-gray-800 dark:text-gray-200">GH₵{p.price.toFixed(2)}</td>
-                        <td className="px-5 py-3.5 whitespace-nowrap">
-                          <span className={`font-medium ${p.stock < 15 ? "text-red-500" : "text-gray-700 dark:text-gray-300"}`}>{p.stock} {p.unit}</span>
-                          {p.stock < 15 && <span className="ml-2 text-xs text-red-500">Low</span>}
-                        </td>
-                        <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400 truncate max-w-[140px]">{p.market}</td>
-                        <td className="px-5 py-3.5">
-                          <span className={`flex items-center gap-1 font-medium text-xs ${p.up ? "text-emerald-600" : "text-red-500"}`}>
-                            {p.up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}{p.change}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${p.status === "Alert" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"}`}>{p.status}</span>
-                        </td>
-                        <td className="px-5 py-3.5 whitespace-nowrap" onClick={e => e.stopPropagation()}>
-                          <div className="flex items-center gap-1">
-                            <button aria-label="Edit" className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-blue-600 transition-colors"><Edit2 className="h-4 w-4" /></button>
-                            <button aria-label="Delete" onClick={() => setDeleteTarget(p.id)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-600 transition-colors"><Trash2 className="h-4 w-4" /></button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {sellerPaged.map(p => {
+                      const isLow = p.stock < (p.minStock || 10);
+                      const statusLabel = p.status === "LOW_STOCK" || isLow ? "Low Stock" : p.status === "INACTIVE" ? "Inactive" : "Active";
+                      const statusCls = p.status === "LOW_STOCK" || isLow
+                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                        : p.status === "INACTIVE"
+                          ? "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                          : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
+                      return (
+                        <tr key={p.id} onClick={() => setViewProduct(p)} className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors cursor-pointer">
+                          <td className="px-5 py-3.5 font-medium text-gray-900 dark:text-white whitespace-nowrap">{p.name}</td>
+                          <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400">{p.category}</td>
+                          <td className="px-5 py-3.5 font-semibold text-gray-800 dark:text-gray-200">GH₵{p.price.toFixed(2)}</td>
+                          <td className="px-5 py-3.5 whitespace-nowrap">
+                            <span className={`font-medium ${isLow ? "text-red-500" : "text-gray-700 dark:text-gray-300"}`}>{p.stock} {p.unit}</span>
+                            {isLow && <span className="ml-2 text-xs text-red-500">Low</span>}
+                          </td>
+                          <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400 truncate max-w-[140px]">{p.market?.name || "—"}</td>
+                          <td className="px-5 py-3.5">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusCls}`}>{statusLabel}</span>
+                          </td>
+                          <td className="px-5 py-3.5 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center gap-1">
+                              <button aria-label="Delete" onClick={() => setDeleteTarget(p.id)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-600 transition-colors"><Trash2 className="h-4 w-4" /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                     {sellerPaged.length === 0 && (
-                      <tr><td colSpan={8} className="px-5 py-12 text-center text-gray-400 text-sm">No products found. Click <strong>New Product</strong> to add one.</td></tr>
+                      <tr><td colSpan={7} className="px-5 py-12 text-center text-gray-400 text-sm">No products found. Click <strong>New Product</strong> to add one.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -364,44 +266,47 @@ function SellerProducts() {
           {viewMode === "card" && (
             <>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {sellerPaged.map(p => (
-                <div key={p.id} onClick={() => setViewProduct(p)} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden cursor-pointer hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all group">
-                  {/* Image / placeholder */}
-                  <div className="h-36 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/10 flex items-center justify-center relative">
-                    <Package className="h-14 w-14 text-emerald-300 dark:text-emerald-700" />
-                    <div className="absolute top-2 right-2">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${p.status === "Alert" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400"}`}>{p.status}</span>
+              {sellerPaged.map(p => {
+                const isLow = p.stock < (p.minStock || 10);
+                const statusLabel = p.status === "LOW_STOCK" || isLow ? "Low Stock" : p.status === "INACTIVE" ? "Inactive" : "Active";
+                const statusCls = p.status === "LOW_STOCK" || isLow
+                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400"
+                  : p.status === "INACTIVE"
+                    ? "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                    : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400";
+                return (
+                  <div key={p.id} onClick={() => setViewProduct(p)} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden cursor-pointer hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all group">
+                    {/* Image / placeholder */}
+                    <div className="h-36 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/10 flex items-center justify-center relative">
+                      <Package className="h-14 w-14 text-emerald-300 dark:text-emerald-700" />
+                      <div className="absolute top-2 right-2">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusCls}`}>{statusLabel}</span>
+                      </div>
                     </div>
-                    <div className="absolute top-2 left-2">
-                      <span className={`flex items-center gap-0.5 text-xs font-semibold ${p.up ? "text-emerald-600" : "text-red-500"}`}>
-                        {p.up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}{p.change}
-                      </span>
+                    {/* Header branding strip */}
+                    <div className="px-4 py-1.5 bg-gray-900 dark:bg-gray-800 flex items-center gap-2">
+                      <TrendingUp className="h-3 w-3 text-emerald-400" />
+                      <span className="text-[10px] font-semibold text-white tracking-wide">Market<span className="text-emerald-400">Wise</span></span>
+                    </div>
+                    <div className="p-4">
+                      <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-0.5">{p.category}</p>
+                      <h3 className="font-semibold text-gray-900 dark:text-white text-sm leading-snug mb-2">{p.name}</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{p.description || "No description."}</p>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-lg font-bold text-gray-900 dark:text-white">GH₵{p.price.toFixed(2)}</span>
+                        <span className="text-xs text-gray-400">/ {p.unit}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-3">
+                        <span className={isLow ? "text-red-500 font-medium" : ""}>{p.stock} {p.unit} left{isLow ? " ⚠️" : ""}</span>
+                        <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{(p.market?.name || "").split(" ")[0]}</span>
+                      </div>
+                      <div className="flex gap-2 pt-2 border-t border-gray-100 dark:border-gray-800" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => setDeleteTarget(p.id)} className="flex-1 py-1.5 text-xs font-medium rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-500 hover:text-red-600 transition-colors border border-gray-200 dark:border-gray-700"><Trash2 className="h-3.5 w-3.5 inline mr-1" />Delete</button>
+                      </div>
                     </div>
                   </div>
-                  {/* Header branding strip */}
-                  <div className="px-4 py-1.5 bg-gray-900 dark:bg-gray-800 flex items-center gap-2">
-                    <TrendingUp className="h-3 w-3 text-emerald-400" />
-                    <span className="text-[10px] font-semibold text-white tracking-wide">Market<span className="text-emerald-400">Wise</span></span>
-                  </div>
-                  <div className="p-4">
-                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-0.5">{p.category}</p>
-                    <h3 className="font-semibold text-gray-900 dark:text-white text-sm leading-snug mb-2">{p.name}</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{p.description || "No description."}</p>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-lg font-bold text-gray-900 dark:text-white">GH₵{p.price.toFixed(2)}</span>
-                      <span className="text-xs text-gray-400">/ {p.unit}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-3">
-                      <span className={p.stock < 15 ? "text-red-500 font-medium" : ""}>{p.stock} {p.unit} left{p.stock < 15 ? " ⚠️" : ""}</span>
-                      <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{p.market.split(" ")[0]}</span>
-                    </div>
-                    <div className="flex gap-2 pt-2 border-t border-gray-100 dark:border-gray-800" onClick={e => e.stopPropagation()}>
-                      <button className="flex-1 py-1.5 text-xs font-medium rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-gray-500 hover:text-blue-600 transition-colors border border-gray-200 dark:border-gray-700"><Edit2 className="h-3.5 w-3.5 inline mr-1" />Edit</button>
-                      <button onClick={() => setDeleteTarget(p.id)} className="flex-1 py-1.5 text-xs font-medium rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-500 hover:text-red-600 transition-colors border border-gray-200 dark:border-gray-700"><Trash2 className="h-3.5 w-3.5 inline mr-1" />Delete</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
               {sellerPaged.length === 0 && (
                 <div className="col-span-full flex flex-col items-center py-16 text-gray-400">
                   <Package className="h-12 w-12 mb-3 opacity-30" />
@@ -426,7 +331,7 @@ function SellerProducts() {
             <div>
               <FormField label="Product Name" required><input className={inputCls} placeholder="e.g. Rice (5kg bag)" value={form.name} onChange={f("name")} /></FormField>
               <FormField label="Category" required><select aria-label="Category" className={selectCls} value={form.category} onChange={f("category")}><option value="">Select category</option>{CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}</select></FormField>
-              <FormField label="Description" hint="Optional"><textarea className={inputCls + " resize-none"} rows={3} placeholder="Describe quality, variety…" value={form.description} onChange={f("description")} /></FormField>
+              <FormField label="Description" hint="Optional"><textarea className={inputCls + " resize-none"} rows={3} placeholder="Describe quality, variety…" value={form.description} onChange={f("description") as any} /></FormField>
               <FormField label="Unit of Sale" required><select aria-label="Unit" className={selectCls} value={form.unit} onChange={f("unit")}>{UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></FormField>
             </div>
           )},
@@ -434,7 +339,7 @@ function SellerProducts() {
             <div>
               <FormField label="Current Stock Quantity" required><input className={inputCls} type="number" min="0" placeholder="e.g. 50" value={form.stock} onChange={f("stock")} /></FormField>
               <FormField label="Low Stock Alert Threshold" hint="Get notified when stock falls below this"><input className={inputCls} type="number" min="0" placeholder="e.g. 10" value={form.minStock} onChange={f("minStock")} /></FormField>
-              <FormField label="Market" required><select aria-label="Market" className={selectCls} value={form.market} onChange={f("market")}><option value="">Select market</option>{MARKETS.map(m => <option key={m} value={m}>{m}</option>)}</select></FormField>
+              <FormField label="Market" required><select aria-label="Market" className={selectCls} value={form.marketId} onChange={f("marketId")}><option value="">Select market</option>{markets.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></FormField>
               <FormField label="Stall / Shop Number" hint="Optional"><input className={inputCls} placeholder="e.g. Block C, Shop 12" value={form.location} onChange={f("location")} /></FormField>
             </div>
           )},
@@ -474,10 +379,9 @@ function SellerProducts() {
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">{viewProduct.description || "No description."}</p>
               {[
                 ["Price", `GH₵${viewProduct.price.toFixed(2)} / ${viewProduct.unit}`],
-                ["Stock", `${viewProduct.stock} ${viewProduct.unit}${viewProduct.stock < 15 ? " ⚠️ Low" : ""}`],
-                ["Market", viewProduct.market],
-                ["Price Change", viewProduct.change],
-                ["Status", viewProduct.status],
+                ["Stock", `${viewProduct.stock} ${viewProduct.unit}${viewProduct.stock < (viewProduct.minStock || 10) ? " ⚠️ Low" : ""}`],
+                ["Market", viewProduct.market?.name || "—"],
+                ["Status", viewProduct.status === "LOW_STOCK" ? "Low Stock" : viewProduct.status === "INACTIVE" ? "Inactive" : "Active"],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
                   <span className="text-sm text-gray-500 dark:text-gray-400">{k}</span>
@@ -495,16 +399,34 @@ function SellerProducts() {
 /* ════════════════════════════════════════ BUYER ═════════════════ */
 function BuyerProducts() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [products] = useState(BUYER_PRODUCTS);
+  const [products, setProducts] = useState<AggregatedProduct[]>([]);
+  const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"list"|"card">("list");
   const [categoryFilter, setCategoryFilter] = useState("All");
-  const [saved, setSaved] = useState<number[]>([1, 3]);
-  const [viewProduct, setViewProduct] = useState<typeof BUYER_PRODUCTS[0] | null>(null);
+  const [viewProduct, setViewProduct] = useState<AggregatedProduct | null>(null);
   const [buyerPage, setBuyerPage] = useState(1);
   const [buyerPageSize, setBuyerPageSize] = useState(15);
   const [sellerSearch, setSellerSearch] = useState("");
   const [sellerPage, setSellerPage] = useState(1);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [{ fetchAggregatedProducts }, { fetchSavedProducts }] = await Promise.all([
+          import("@/lib/api/inventory"),
+          import("@/lib/api/saved"),
+        ]);
+        const [pRes, sRes] = await Promise.all([fetchAggregatedProducts(), fetchSavedProducts()]);
+        setProducts((pRes as any).products ?? (pRes as any));
+        const saved: any[] = (sRes as any).saved ?? (sRes as any);
+        setSavedIds(saved.map((s: any) => s.productId));
+      } catch (err) { console.error(err); }
+      finally { setLoading(false); }
+    }
+    load();
+  }, []);
 
   const categories = ["All", ...Array.from(new Set(products.map(p => p.category)))];
   const filtered = products.filter(p =>
@@ -513,7 +435,25 @@ function BuyerProducts() {
   );
   const buyerPaged = filtered.slice((buyerPage - 1) * buyerPageSize, buyerPage * buyerPageSize);
 
-  function toggleSave(id: number) { setSaved(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]); }
+  async function toggleSave(productId: string) {
+    try {
+      if (savedIds.includes(productId)) {
+        const { removeSavedProduct } = await import("@/lib/api/saved");
+        await removeSavedProduct(productId);
+        setSavedIds(prev => prev.filter(id => id !== productId));
+      } else {
+        const { saveProduct } = await import("@/lib/api/saved");
+        await saveProduct(productId);
+        setSavedIds(prev => [...prev, productId]);
+      }
+    } catch (err) { console.error(err); }
+  }
+
+  if (loading) return (
+    <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
+      <div className="h-8 w-8 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin" />
+    </div>
+  );
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
@@ -589,25 +529,27 @@ function BuyerProducts() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {buyerPaged.map(p => (
-                      <tr key={p.id} onClick={() => setViewProduct(p)} className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors cursor-pointer">
-                        <td className="px-5 py-3.5">
-                          <p className="font-medium text-gray-900 dark:text-white whitespace-nowrap">{p.name}</p>
-                          <div className="flex mt-0.5">{Array.from({length:5}).map((_,i) => <Star key={i} className={`h-2.5 w-2.5 ${i < Math.floor(p.rating) ? "text-amber-400 fill-amber-400" : "text-gray-200 dark:text-gray-700"}`} />)}</div>
-                        </td>
-                        <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400">{p.category}</td>
-                        <td className="px-5 py-3.5"><span className="font-bold text-emerald-600 dark:text-emerald-400">GH₵{p.lowestPrice.toFixed(2)}</span></td>
-                        <td className="px-5 py-3.5 text-gray-600 dark:text-gray-400">GH₵{p.avgPrice.toFixed(2)}</td>
-                        <td className="px-5 py-3.5"><span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">{p.sellers} sellers</span></td>
-                        <td className="px-5 py-3.5"><span className={`flex items-center gap-1 text-xs font-medium ${p.up ? "text-emerald-600" : "text-red-500"}`}>{p.up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}{p.change}</span></td>
-                        <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400 truncate max-w-[140px]">{p.market}</td>
-                        <td className="px-5 py-3.5" onClick={e => e.stopPropagation()}>
-                          <button onClick={() => toggleSave(p.id)} className={`p-1.5 rounded-lg transition-colors ${saved.includes(p.id) ? "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-blue-500"}`} title={saved.includes(p.id) ? "Unsave" : "Save"}>
-                            {saved.includes(p.id) ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {buyerPaged.map(p => {
+                      const pid = p.sellerList?.[0]?.productId || p.name;
+                      return (
+                        <tr key={pid} onClick={() => setViewProduct(p)} className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors cursor-pointer">
+                          <td className="px-5 py-3.5">
+                            <p className="font-medium text-gray-900 dark:text-white whitespace-nowrap">{p.name}</p>
+                          </td>
+                          <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400">{p.category}</td>
+                          <td className="px-5 py-3.5"><span className="font-bold text-emerald-600 dark:text-emerald-400">GH₵{p.lowestPrice.toFixed(2)}</span></td>
+                          <td className="px-5 py-3.5 text-gray-600 dark:text-gray-400">GH₵{p.avgPrice.toFixed(2)}</td>
+                          <td className="px-5 py-3.5"><span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">{p.sellers} sellers</span></td>
+                          <td className="px-5 py-3.5"><span className={`flex items-center gap-1 text-xs font-medium ${p.up ? "text-emerald-600" : "text-red-500"}`}>{p.up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}{p.change}</span></td>
+                          <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400 truncate max-w-[140px]">{p.market}</td>
+                          <td className="px-5 py-3.5" onClick={e => e.stopPropagation()}>
+                            <button onClick={() => toggleSave(pid)} className={`p-1.5 rounded-lg transition-colors ${savedIds.includes(pid) ? "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-blue-500"}`} title={savedIds.includes(pid) ? "Unsave" : "Save"}>
+                              {savedIds.includes(pid) ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -619,47 +561,49 @@ function BuyerProducts() {
           {viewMode === "card" && (
             <>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {buyerPaged.map(p => (
-                <div key={p.id} onClick={() => setViewProduct(p)} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden cursor-pointer hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all">
-                  <div className="h-36 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/10 flex items-center justify-center relative">
-                    <Package className="h-14 w-14 text-blue-200 dark:text-blue-800" />
-                    <div className="absolute top-2 right-2">
-                      <button onClick={e => { e.stopPropagation(); toggleSave(p.id); }} className={`p-1.5 rounded-full transition-colors ${saved.includes(p.id) ? "bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400" : "bg-white/80 dark:bg-gray-800/80 text-gray-400 hover:text-blue-600"}`}>
-                        {saved.includes(p.id) ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
-                      </button>
-                    </div>
-                    <div className="absolute top-2 left-2">
-                      <span className={`flex items-center gap-0.5 text-xs font-semibold ${p.up ? "text-emerald-600" : "text-red-500"} bg-white/80 dark:bg-gray-900/80 px-1.5 py-0.5 rounded-full`}>
-                        {p.up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}{p.change}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="px-4 py-1.5 bg-gray-900 dark:bg-gray-800 flex items-center gap-2">
-                    <TrendingUp className="h-3 w-3 text-emerald-400" />
-                    <span className="text-[10px] font-semibold text-white">Market<span className="text-emerald-400">Wise</span></span>
-                  </div>
-                  <div className="p-4">
-                    <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-0.5">{p.category}</p>
-                    <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-1">{p.name}</h3>
-                    <div className="flex mb-2">{Array.from({length:5}).map((_,i) => <Star key={i} className={`h-3 w-3 ${i < Math.floor(p.rating) ? "text-amber-400 fill-amber-400" : "text-gray-200 dark:text-gray-700"}`} />)}</div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{p.description}</p>
-                    <div className="flex items-end justify-between mb-1">
-                      <div>
-                        <p className="text-xs text-gray-400">Best Price</p>
-                        <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">GH₵{p.lowestPrice.toFixed(2)}</p>
+              {buyerPaged.map(p => {
+                const pid = p.sellerList?.[0]?.productId || p.name;
+                return (
+                  <div key={pid} onClick={() => setViewProduct(p)} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden cursor-pointer hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all">
+                    <div className="h-36 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/10 flex items-center justify-center relative">
+                      <Package className="h-14 w-14 text-blue-200 dark:text-blue-800" />
+                      <div className="absolute top-2 right-2">
+                        <button onClick={e => { e.stopPropagation(); toggleSave(pid); }} className={`p-1.5 rounded-full transition-colors ${savedIds.includes(pid) ? "bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400" : "bg-white/80 dark:bg-gray-800/80 text-gray-400 hover:text-blue-600"}`}>
+                          {savedIds.includes(pid) ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
+                        </button>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-400">Avg</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">GH₵{p.avgPrice.toFixed(2)}</p>
+                      <div className="absolute top-2 left-2">
+                        <span className={`flex items-center gap-0.5 text-xs font-semibold ${p.up ? "text-emerald-600" : "text-red-500"} bg-white/80 dark:bg-gray-900/80 px-1.5 py-0.5 rounded-full`}>
+                          {p.up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}{p.change}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">{p.sellers} sellers</span>
-                      <span className="flex items-center gap-1 truncate"><MapPin className="h-3 w-3 flex-shrink-0" />{p.market.split(" ")[0]}</span>
+                    <div className="px-4 py-1.5 bg-gray-900 dark:bg-gray-800 flex items-center gap-2">
+                      <TrendingUp className="h-3 w-3 text-emerald-400" />
+                      <span className="text-[10px] font-semibold text-white">Market<span className="text-emerald-400">Wise</span></span>
+                    </div>
+                    <div className="p-4">
+                      <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-0.5">{p.category}</p>
+                      <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-1">{p.name}</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{p.description}</p>
+                      <div className="flex items-end justify-between mb-1">
+                        <div>
+                          <p className="text-xs text-gray-400">Best Price</p>
+                          <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">GH₵{p.lowestPrice.toFixed(2)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-400">Avg</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">GH₵{p.avgPrice.toFixed(2)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">{p.sellers} sellers</span>
+                        <span className="flex items-center gap-1 truncate"><MapPin className="h-3 w-3 flex-shrink-0" />{p.market.split(" ")[0]}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 mt-1">
               <PageBar page={buyerPage} total={filtered.length} pageSize={buyerPageSize} setPage={setBuyerPage} setPageSize={(s) => { setBuyerPageSize(s); setBuyerPage(1); }} label="products" />
@@ -671,7 +615,7 @@ function BuyerProducts() {
 
       {/* View product modal */}
       {viewProduct && (() => {
-        const allSellers = (BUYER_SELLERS[viewProduct.id] ?? []).slice().sort((a, b) => a.price - b.price);
+        const allSellers = (viewProduct.sellerList || []).slice().sort((a, b) => a.price - b.price);
         const filteredSellers = sellerSearch
           ? allSellers.filter(s =>
               s.seller.toLowerCase().includes(sellerSearch.toLowerCase()) ||
@@ -681,6 +625,7 @@ function BuyerProducts() {
         const MODAL_PAGE_SIZE = 5;
         const pagedSellers = filteredSellers.slice((sellerPage - 1) * MODAL_PAGE_SIZE, sellerPage * MODAL_PAGE_SIZE);
         const bestPrice = allSellers.length > 0 ? allSellers[0].price : viewProduct.lowestPrice;
+        const pid = allSellers[0]?.productId || viewProduct.name;
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setViewProduct(null); setSellerSearch(""); setSellerPage(1); }} />
@@ -703,8 +648,8 @@ function BuyerProducts() {
                     <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-0.5">{viewProduct.category}</p>
                     <h3 className="font-bold text-gray-900 dark:text-white text-lg leading-tight">{viewProduct.name}</h3>
                   </div>
-                  <button onClick={() => toggleSave(viewProduct.id)} className={`p-2 rounded-xl transition-colors ${saved.includes(viewProduct.id) ? "bg-blue-100 dark:bg-blue-900/30 text-blue-600" : "bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-blue-600"}`}>
-                    {saved.includes(viewProduct.id) ? <BookmarkCheck className="h-5 w-5" /> : <Bookmark className="h-5 w-5" />}
+                  <button onClick={() => toggleSave(pid)} className={`p-2 rounded-xl transition-colors ${savedIds.includes(pid) ? "bg-blue-100 dark:bg-blue-900/30 text-blue-600" : "bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-blue-600"}`}>
+                    {savedIds.includes(pid) ? <BookmarkCheck className="h-5 w-5" /> : <Bookmark className="h-5 w-5" />}
                   </button>
                 </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{viewProduct.description}</p>
@@ -734,7 +679,7 @@ function BuyerProducts() {
                   </div>
                 ))}
 
-                {/* ── Seller breakdown ── */}
+                {/* Seller breakdown */}
                 {allSellers.length > 0 && (
                   <div className="mt-6">
                     <div className="flex items-center justify-between mb-3">
@@ -772,7 +717,7 @@ function BuyerProducts() {
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold text-gray-900 dark:text-white">{s.seller}</p>
                               <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
-                                <MapPin className="h-3 w-3 flex-shrink-0" />{s.market} · {s.distance}
+                                <MapPin className="h-3 w-3 flex-shrink-0" />{s.market}
                               </p>
                               <div className="flex items-center gap-1 mt-1">
                                 {Array.from({ length: 5 }).map((_, i) => (

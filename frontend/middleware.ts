@@ -15,12 +15,11 @@ export function middleware(request: NextRequest) {
   const isAdminOnly = ADMIN_ONLY.some((p) => pathname.startsWith(p));
 
   // Unauthenticated user hitting a protected route → send to login
-  // AUTH TEMPORARILY DISABLED FOR PREVIEW
-  // if (isProtected && !token) {
-  //   const url = request.nextUrl.clone();
-  //   url.pathname = "/login";
-  //   return NextResponse.redirect(url);
-  // }
+  if (isProtected && !token) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
+  }
 
   // Non-admin hitting an admin route → send to their dashboard
   if (isAdminOnly && role !== "admin") {

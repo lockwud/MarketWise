@@ -76,25 +76,11 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("https://smartpantry-bc4q.onrender.com/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Invalid email or password");
-      }
-
-      const data = await response.json();
-      setAuthCookies(data.token, data.role);
+      const { login } = await import("@/lib/api/auth");
+      const data = await login(formData.email, formData.password);
+      setAuthCookies(data.token, data.user.role.toLowerCase());
       toast({ title: "Login successful", description: "Welcome back!" });
-
-      // Redirect based on role
-      router.push(data.role === "admin" ? "/admin/dashboard" : "/dashboard");
+      router.push(data.user.role === "ADMIN" ? "/admin" : "/dashboard");
     } catch (error: any) {
       toast({
         variant: "destructive",

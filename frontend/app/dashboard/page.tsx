@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getUserRole } from "@/lib/auth";
+import { getUserRole, setAuthCookies } from "@/lib/auth";
 import SellerDashboard from "./seller";
 import BuyerDashboard from "./buyer";
+import { getMe } from "@/lib/api/auth";
 
 function getUserLocation(): string {
   if (typeof window === "undefined") return "";
@@ -15,7 +16,19 @@ export default function DashboardPage() {
   const [location, setLocation] = useState("");
 
   useEffect(() => {
-    setRole("buyer"); // HARDCODED FOR PREVIEW — restore to: getUserRole() || "seller"
+    const storedRole = getUserRole();
+    if (storedRole) {
+      setRole(storedRole);
+    } else {
+      getMe()
+        .then((user) => {
+          setAuthCookies(undefined as any, user.role.toLowerCase());
+          setRole(user.role.toLowerCase());
+        })
+        .catch(() => {
+          setRole("buyer");
+        });
+    }
     setLocation(getUserLocation());
   }, []);
 

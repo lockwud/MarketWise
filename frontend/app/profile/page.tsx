@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getUserRole } from "@/lib/auth";
+import { getMe, updateMe } from "@/lib/api/auth";
 import {
   TrendingUp, Bell, Search, Package, MapPin, ShoppingCart, LogOut,
   LayoutDashboard, User, Menu, BarChart3, Heart, Users, Tag,
@@ -68,14 +69,21 @@ function ProfileView({ role }: { role: string }) {
   const accent = role === "admin" ? "violet" : "emerald";
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const [form, setForm] = useState({
-    name: role === "admin" ? "Samuel Owusu" : role === "buyer" ? "Ama Darko" : "Kwame Mensah",
-    email: role === "admin" ? "admin@marketwise.gh" : role === "buyer" ? "ama.darko@gmail.com" : "kwame.mensah@gmail.com",
-    phone: "+233 24 000 0000",
-    location: role === "admin" ? "Accra, GR" : role === "buyer" ? "Kumasi, Ashanti" : "Accra, Greater Accra",
+    name: "",
+    email: "",
+    phone: "",
+    location: "",
     notifications: { orders: true, priceAlerts: role !== "buyer", comments: false, marketUpdates: true },
   });
+
+  useEffect(() => {
+    getMe().then(user => {
+      setForm(f => ({ ...f, name: user.name || "", email: user.email || "", phone: (user as any).phone || "", location: user.location || "" }));
+    }).catch(() => {});
+  }, []);
 
   const accentActiveStyle = accent === "violet" ? "bg-violet-600 text-white" : "bg-emerald-600 text-white";
   const accentIconBg = accent === "violet" ? "bg-violet-600" : "bg-emerald-600";
@@ -85,9 +93,15 @@ function ProfileView({ role }: { role: string }) {
     : "bg-emerald-600 hover:bg-emerald-700 text-white";
   const accentRing = accent === "violet" ? "focus:ring-violet-500" : "focus:ring-emerald-500";
 
-  function save() {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+  async function save() {
+    setSaveError("");
+    try {
+      await updateMe({ name: form.name, phone: form.phone, location: form.location });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch {
+      setSaveError("Failed to save changes. Please try again.");
+    }
   }
 
   return (

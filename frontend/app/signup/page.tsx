@@ -119,25 +119,15 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("https://smartpantry-bc4q.onrender.com/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
+      const { signup } = await import("@/lib/api/auth");
+      const data = await signup({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Signup failed. Please try again.");
-      }
-
-      const data = await response.json();
-      setAuthCookies(data.token, data.role);
+      setAuthCookies(data.token, data.user.role.toLowerCase());
       toast({ title: "Signup successful", description: "Welcome to MarketWise!" });
-
-      // Redirect based on role
-      router.push(data.role === "admin" ? "/admin/dashboard" : "/dashboard");
+      router.push(data.user.role === "ADMIN" ? "/admin" : "/dashboard");
     } catch (error: any) {
       toast({
         variant: "destructive",

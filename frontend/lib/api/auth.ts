@@ -1,85 +1,55 @@
+import { request } from "./client";
+
 export interface LoginRequest {
   email: string;
   password: string;
-}
-
-export interface LoginResponse {
-  token: string;
-  role: string;
-  message?: string;
 }
 
 export interface SignupRequest {
   name: string;
   email: string;
   password: string;
+  role?: string;
 }
 
-export interface SignupResponse {
+export interface AuthResponse {
   token: string;
   role: string;
-  message?: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    location?: string;
+  };
 }
 
-export const login = async (data: LoginRequest): Promise<LoginResponse> => {
-  try {
-    const response = await fetch(
-      "https://smartpantry-bc4q.onrender.com/auth/login",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      }
-    );
+export const login = (data: LoginRequest) =>
+  request<AuthResponse>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || "Login failed");
-    }
-
-    const responseData = await response.json();
-    return {
-      token: responseData.token || responseData.access_token,
-      role: responseData.role || "user",
-      message: responseData.message,
-    };
-  } catch (error: any) {
-    throw new Error(error.message || "An error occurred during login");
-  }
-};
-
-export const signup = async (data: SignupRequest): Promise<SignupResponse> => {
-  try {
-    const response = await fetch(
-      "https://smartpantry-bc4q.onrender.com/auth/register",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || "Registration failed");
-    }
-
-    const responseData = await response.json();
-    return {
-      token: responseData.token || responseData.access_token,
-      role: responseData.role || "user",
-      message: responseData.message,
-    };
-  } catch (error: any) {
-    throw new Error(error.message || "An error occurred during registration");
-  }
-};
+export const signup = (data: SignupRequest) =>
+  request<AuthResponse>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 
 export const logout = async (): Promise<void> => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("role");
+  await request<{ message: string }>("/auth/logout", { method: "POST" });
 };
+
+export const getMe = () => request<AuthResponse["user"]>("/auth/me");
+
+export const updateMe = (data: { name?: string; phone?: string; location?: string }) =>
+  request<AuthResponse["user"]>("/auth/me", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+
+export const changePassword = (data: { currentPassword: string; newPassword: string }) =>
+  request<{ message: string }>("/auth/password", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });

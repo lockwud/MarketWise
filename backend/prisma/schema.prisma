@@ -1,0 +1,207 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  BUYER
+  SELLER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  PENDING
+  SUSPENDED
+}
+
+enum ProductStatus {
+  ACTIVE
+  ALERT
+  INACTIVE
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  DELIVERED
+  CANCELLED
+}
+
+enum SubmissionStatus {
+  PENDING
+  APPROVED
+  FLAGGED
+  REJECTED
+}
+
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  email        String     @unique
+  password     String
+  role         Role       @default(BUYER)
+  status       UserStatus @default(ACTIVE)
+  phone        String?
+  location     String?
+  profileImage String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  products        Product[]
+  orders          Order[]         @relation("BuyerOrders")
+  sellerOrders    Order[]         @relation("SellerOrders")
+  shoppingItems   ShoppingItem[]
+  savedProducts   SavedProduct[]
+  priceAlerts     PriceAlert[]
+  submissions     PriceSubmission[]
+  priceHistories  PriceHistory[]
+}
+
+model Market {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  city        String
+  region      String   @default("Greater Accra")
+  district    String?
+  description String?
+  open        Boolean  @default(true)
+  hours       String   @default("6am – 8pm")
+  distance    String?
+  latitude    Float?
+  longitude   Float?
+  status      String   @default("Active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products    Product[]
+  orders      Order[]
+}
+
+model Product {
+  id           String        @id @default(cuid())
+  name         String
+  category     String
+  description  String?
+  unit         String        @default("kg")
+  price        Float
+  comparePrice Float?
+  stock        Int           @default(0)
+  minStock     Int           @default(10)
+  status       ProductStatus @default(ACTIVE)
+  image        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  seller        User    @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  sellerId      String
+  market        Market  @relation(fields: [marketId], references: [id])
+  marketId      String
+
+  orderItems     OrderItem[]
+  priceHistories PriceHistory[]
+  submissions    PriceSubmission[]
+  savedBy        SavedProduct[]
+}
+
+model Order {
+  id        String      @id @default(cuid())
+  status    OrderStatus @default(PENDING)
+  notes     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  buyer    User   @relation("BuyerOrders", fields: [buyerId], references: [id])
+  buyerId  String
+  seller   User   @relation("SellerOrders", fields: [sellerId], references: [id])
+  sellerId String
+  market   Market @relation(fields: [marketId], references: [id])
+  marketId String
+
+  items OrderItem[]
+}
+
+model OrderItem {
+  id          String  @id @default(cuid())
+  productName String
+  quantity    Int
+  unit        String
+  price       Float
+  total       Float
+
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId   String
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+}
+
+model ShoppingItem {
+  id        String   @id @default(cuid())
+  name      String
+  category  String   @default("General")
+  quantity  String   @default("1")
+  checked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+}
+
+model SavedProduct {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+
+  @@unique([userId, productId])
+}
+
+model PriceAlert {
+  id        String   @id @default(cuid())
+  product   String
+  condition String
+  current   Float
+  target    Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+}
+
+model PriceHistory {
+  id         String   @id @default(cuid())
+  price      Float
+  recordedAt DateTime @default(now())
+
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+  seller    User    @relation(fields: [sellerId], references: [id])
+  sellerId  String
+}
+
+model PriceSubmission {
+  id        String           @id @default(cuid())
+  productName String
+  price     Float
+  prevPrice Float
+  change    String
+  up        Boolean          @default(true)
+  status    SubmissionStatus @default(PENDING)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  seller    User    @relation(fields: [sellerId], references: [id])
+  sellerId  String
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+  market    String
+}
