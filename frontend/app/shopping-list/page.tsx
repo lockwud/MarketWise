@@ -11,25 +11,12 @@ import {
   Archive, RotateCcw,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { fetchShoppingList, addShoppingItem, updateShoppingItem, deleteShoppingItem, clearShoppingList } from "@/lib/api/shoppingList";
+import type { ShoppingItem } from "@/lib/api/shoppingList";
+import { fetchPriceAlerts, createPriceAlert, deletePriceAlert } from "@/lib/api/priceAlerts";
+import { fetchSubmissions } from "@/lib/api/submissions";
 
-/* ─── data ─────────────────────────────────────────────────────── */
-const PRICE_HISTORY = [
-  { id: 1, product: "Rice (5kg bag)", market: "Accra Central Market", category: "Grains", oldPrice: 42, newPrice: 45, change: "+7.1%", up: true, date: "Apr 6, 2026" },
-  { id: 2, product: "Cooking Oil (2L)", market: "Kumasi Central Market", category: "Cooking Essentials", oldPrice: 40, newPrice: 38.5, change: "-3.8%", up: false, date: "Apr 5, 2026" },
-  { id: 3, product: "Tomatoes (1kg)", market: "Takoradi Market", category: "Vegetables", oldPrice: 11.5, newPrice: 12, change: "+4.3%", up: true, date: "Apr 5, 2026" },
-  { id: 4, product: "Chicken (1kg)", market: "Accra Central Market", category: "Proteins", oldPrice: 35, newPrice: 32, change: "-8.6%", up: false, date: "Apr 4, 2026" },
-  { id: 5, product: "Eggs (crate×30)", market: "Kaneshie Market", category: "Proteins", oldPrice: 52, newPrice: 55, change: "+5.8%", up: true, date: "Apr 4, 2026" },
-  { id: 6, product: "Yam (medium)", market: "Kumasi Central Market", category: "Vegetables", oldPrice: 17, newPrice: 18, change: "+5.9%", up: true, date: "Apr 3, 2026" },
-];
-const PRICE_ALERTS_INIT = [
-  { id: 1, product: "Rice (50kg bag)", condition: "below GH₵270", current: 290, target: 270 },
-  { id: 2, product: "Cooking Oil (2L)", condition: "any change >5%", current: 38.5, target: 38.5 },
-];
-const SHOPPING_LIST_INIT = [
-  { id: 1, name: "Rice (50kg bag)", category: "Grains", quantity: "1 bag", checked: false },
-  { id: 2, name: "Tomatoes (1kg)", category: "Vegetables", quantity: "2 kg", checked: true },
-  { id: 3, name: "Cooking Oil (2L)", category: "Cooking Essentials", quantity: "1 bottle", checked: false },
-];
 
 const PRODUCT_PRICES: Record<string, { lowestPrice: number; avgPrice: number; change: string; up: boolean }> = {
   "Rice (50kg bag)": { lowestPrice: 265, avgPrice: 290, change: "+2.1%", up: true },
@@ -58,31 +45,6 @@ interface PastTrip {
   market: string;
 }
 
-const PAST_TRIPS_INIT: PastTrip[] = [
-  {
-    id: 1,
-    name: "Weekly Market Run",
-    date: "Mar 30, 2026",
-    items: [
-      { name: "Rice (50kg bag)", category: "Grains", quantity: "1 bag" },
-      { name: "Tomatoes (1kg)", category: "Vegetables", quantity: "2 kg" },
-      { name: "Cooking Oil (2L)", category: "Cooking Essentials", quantity: "1 bottle" },
-    ],
-    totalSaved: 29.5,
-    market: "Accra Central Market",
-  },
-  {
-    id: 2,
-    name: "Protein Stock-up",
-    date: "Mar 23, 2026",
-    items: [
-      { name: "Chicken (1kg)", category: "Proteins", quantity: "3 kg" },
-      { name: "Eggs (crate×30)", category: "Proteins", quantity: "1 crate" },
-    ],
-    totalSaved: 17,
-    market: "Kaneshie Market",
-  },
-];
 
 type IconComp = React.FC<{ className?: string }>;
 
@@ -91,7 +53,7 @@ const SELLER_NAV = [
   { href: "/inventory", icon: Package as IconComp, label: "My Products" },
   { href: "/orders", icon: ShoppingCart as IconComp, label: "Orders" },
   { href: "/shopping-list", icon: BarChart3 as IconComp, label: "Price Tracking", active: true },
-  { href: "/recipes", icon: MapPin as IconComp, label: "Markets" },
+  { href: "/markets", icon: MapPin as IconComp, label: "Markets" },
   { href: "/profile", icon: User as IconComp, label: "Profile" },
 ];
 const BUYER_NAV = [
@@ -116,22 +78,75 @@ function SellerPriceTracking() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
-  const [alerts, setAlerts] = useState(PRICE_ALERTS_INIT);
+
+  type PriceRow = { id: string; product: string; market: string; category: string; oldPrice: number; newPrice: number; change: string; up: boolean; date: string };
+  const [priceHistory, setPriceHistory] = useState<PriceRow[]>([]);
+
+  type Alert = { id: string; product: string; condition: string; current: number; target: number };
+  const [alerts, setAlerts] = useState<Alert[]>([]);
   const [newAlertProduct, setNewAlertProduct] = useState("");
   const [newAlertTarget, setNewAlertTarget] = useState("");
-  const [removeAlert, setRemoveAlert] = useState<number | null>(null);
+  const [removeAlertId, setRemoveAlertId] = useState<string | null>(null);
   const [addAlertOpen, setAddAlertOpen] = useState(false);
 
-  const categories = ["All", ...Array.from(new Set(PRICE_HISTORY.map(p => p.category)))];
-  const filtered = PRICE_HISTORY.filter(p =>
+  useEffect(() => {
+    fetchSubmissions({ status: "APPROVED" })
+      .then(({ submissions }) => setPriceHistory(submissions.map(s => ({
+        id: s.id,
+        product: s.productName,
+        market: s.market ?? "",
+        category: "",
+        oldPrice: s.prevPrice ?? 0,
+        newPrice: s.price,
+        change: s.change ?? "",
+        up: s.prevPrice == null ? true : s.price >= s.prevPrice,
+        date: (s as any).submitted ?? "",
+      }))))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchPriceAlerts()
+      .then(data => setAlerts(data.map(a => ({
+        id: a.id,
+        product: a.productName,
+        condition: `${a.condition === "BELOW" ? "below" : "above"} GH\u20b5${a.targetPrice}`,
+        current: a.currentPrice,
+        target: a.targetPrice,
+      }))))
+      .catch(() => {});
+  }, []);
+
+  const categories = ["All", ...Array.from(new Set(priceHistory.map(p => p.category).filter(Boolean)))];
+  const filtered = priceHistory.filter(p =>
     (categoryFilter === "All" || p.category === categoryFilter) &&
     (p.product.toLowerCase().includes(search.toLowerCase()) || p.market.toLowerCase().includes(search.toLowerCase()))
   );
 
-  function addAlert() {
+  async function addAlert() {
     if (!newAlertProduct.trim()) return;
-    setAlerts(prev => [...prev, { id: Date.now(), product: newAlertProduct, condition: `below GH₵${newAlertTarget || "0"}`, current: parseFloat(newAlertTarget) || 0, target: parseFloat(newAlertTarget) || 0 }]);
-    setNewAlertProduct(""); setNewAlertTarget(""); setAddAlertOpen(false);
+    const target = parseFloat(newAlertTarget) || 0;
+    try {
+      const created = await createPriceAlert({ productName: newAlertProduct, condition: "BELOW", targetPrice: target });
+      setAlerts(prev => [...prev, {
+        id: created.id,
+        product: created.productName,
+        condition: `below GH\u20b5${created.targetPrice}`,
+        current: created.currentPrice,
+        target: created.targetPrice,
+      }]);
+      setNewAlertProduct(""); setNewAlertTarget(""); setAddAlertOpen(false);
+    } catch { /* silent */ }
+  }
+
+  async function confirmRemoveAlert() {
+    if (!removeAlertId) return;
+    const id = removeAlertId;
+    setRemoveAlertId(null);
+    try {
+      await deletePriceAlert(id);
+      setAlerts(prev => prev.filter(a => a.id !== id));
+    } catch { /* silent */ }
   }
 
   return (
@@ -148,9 +163,9 @@ function SellerPriceTracking() {
           {/* Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: "Price Records", value: PRICE_HISTORY.length, change: "+12.4% vs last week", up: true, Icon: BarChart3 as IconComp, bg: "bg-emerald-50 dark:bg-emerald-900/20", ic: "text-emerald-600 dark:text-emerald-400" },
-              { label: "Price Increases", value: PRICE_HISTORY.filter(p => p.up).length, change: "Products went up", up: false, Icon: TrendingUp as IconComp, bg: "bg-red-50 dark:bg-red-900/20", ic: "text-red-600 dark:text-red-400" },
-              { label: "Price Drops", value: PRICE_HISTORY.filter(p => !p.up).length, change: "Products went down", up: true, Icon: TrendingDown as IconComp, bg: "bg-blue-50 dark:bg-blue-900/20", ic: "text-blue-600 dark:text-blue-400" },
+              { label: "Price Records", value: priceHistory.length, change: "Approved submissions", up: true, Icon: BarChart3 as IconComp, bg: "bg-emerald-50 dark:bg-emerald-900/20", ic: "text-emerald-600 dark:text-emerald-400" },
+              { label: "Price Increases", value: priceHistory.filter(p => p.up).length, change: "Products went up", up: false, Icon: TrendingUp as IconComp, bg: "bg-red-50 dark:bg-red-900/20", ic: "text-red-600 dark:text-red-400" },
+              { label: "Price Drops", value: priceHistory.filter(p => !p.up).length, change: "Products went down", up: true, Icon: TrendingDown as IconComp, bg: "bg-blue-50 dark:bg-blue-900/20", ic: "text-blue-600 dark:text-blue-400" },
               { label: "Active Alerts", value: alerts.length, change: "Monitoring", up: true, Icon: BellIcon as IconComp, bg: "bg-amber-50 dark:bg-amber-900/20", ic: "text-amber-600 dark:text-amber-400" },
             ].map(({ label, value, change, up, Icon, bg, ic }) => (
               <div key={label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 flex flex-col gap-3">
@@ -237,7 +252,7 @@ function SellerPriceTracking() {
                       <p className="text-xs text-gray-500 dark:text-gray-400">Notify when {a.condition}</p>
                       <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Current: GH₵{a.current}</p>
                     </div>
-                    <button aria-label="Remove alert" onClick={() => setRemoveAlert(a.id)} className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0"><Trash2 className="h-3.5 w-3.5" /></button>
+                    <button aria-label="Remove alert" onClick={() => setRemoveAlertId(a.id)} className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0"><Trash2 className="h-3.5 w-3.5" /></button>
                   </div>
                 ))}
                 {alerts.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No active alerts</p>}
@@ -247,26 +262,44 @@ function SellerPriceTracking() {
         </main>
       </div>
 
-      <ConfirmDialog open={removeAlert !== null} title="Remove Alert" description="Remove this price alert? You will no longer receive notifications." confirmLabel="Remove" variant="warning" onConfirm={() => { setAlerts(prev => prev.filter(a => a.id !== removeAlert)); setRemoveAlert(null); }} onCancel={() => setRemoveAlert(null)} />
+      <ConfirmDialog open={removeAlertId !== null} title="Remove Alert" description="Remove this price alert? You will no longer receive notifications." confirmLabel="Remove" variant="warning" onConfirm={confirmRemoveAlert} onCancel={() => setRemoveAlertId(null)} />
     </div>
   );
 }
 
 /* ═══════════════════════ BUYER SHOPPING LIST ════════════════════ */
 function BuyerShoppingList() {
+  const { toast } = useToast();
   const searchParams = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [search, setSearch] = useState("");
-  const [items, setItems] = useState(SHOPPING_LIST_INIT);
+  const [items, setItems] = useState<ShoppingItem[]>([]);
+  const [listLoading, setListLoading] = useState(true);
   const [newName, setNewName] = useState("");
   const [newQty, setNewQty] = useState("");
   const [clearConfirm, setClearConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState<"current" | "past">("current");
-  const [pastTrips, setPastTrips] = useState<PastTrip[]>(PAST_TRIPS_INIT);
+  const [pastTrips, setPastTrips] = useState<PastTrip[]>([]);
   const [archiveConfirm, setArchiveConfirm] = useState(false);
   const [tripName, setTripName] = useState("");
   const [deleteTripId, setDeleteTripId] = useState<number | null>(null);
   const [reuseTrip, setReuseTrip] = useState<PastTrip | null>(null);
+
+  // Load shopping list from API
+  useEffect(() => {
+    fetchShoppingList()
+      .then(data => setItems(data))
+      .catch(() => toast({ title: "Failed to load shopping list", variant: "destructive" }))
+      .finally(() => setListLoading(false));
+  }, [toast]);
+
+  // Load past trips from localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("mw_past_trips");
+      if (stored) setPastTrips(JSON.parse(stored));
+    } catch {}
+  }, []);
 
   const pending = items.filter(i => !i.checked);
   const checked = items.filter(i => i.checked);
@@ -277,40 +310,79 @@ function BuyerShoppingList() {
     .filter((x): x is { name: string; saved: number } => x !== null);
   const totalSavings = savingsItems.reduce((s, x) => s + x.saved, 0);
 
-  function addItem() {
+  async function addItem() {
     if (!newName.trim()) return;
-    setItems(prev => [...prev, { id: Date.now(), name: newName.trim(), category: "Other", quantity: newQty.trim() || "1", checked: false }]);
-    setNewName(""); setNewQty("");
+    try {
+      const created = await addShoppingItem({ name: newName.trim(), quantity: newQty.trim() || "1" });
+      setItems(prev => [...prev, created]);
+      setNewName(""); setNewQty("");
+    } catch {
+      toast({ title: "Failed to add item", variant: "destructive" });
+    }
   }
-  function toggle(id: number) { setItems(prev => prev.map(i => i.id === id ? { ...i, checked: !i.checked } : i)); }
-  function remove(id: number) { setItems(prev => prev.filter(i => i.id !== id)); }
-  function clearChecked() { setItems(prev => prev.filter(i => !i.checked)); setClearConfirm(false); }
+  async function toggle(id: string) {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    try {
+      const updated = await updateShoppingItem(id, { checked: !item.checked });
+      setItems(prev => prev.map(i => i.id === id ? updated : i));
+    } catch {}
+  }
+  async function remove(id: string) {
+    try {
+      await deleteShoppingItem(id);
+      setItems(prev => prev.filter(i => i.id !== id));
+    } catch {
+      toast({ title: "Failed to remove item", variant: "destructive" });
+    }
+  }
+  async function clearChecked() {
+    setClearConfirm(false);
+    const toDelete = items.filter(i => i.checked);
+    try {
+      await Promise.all(toDelete.map(i => deleteShoppingItem(i.id)));
+      setItems(prev => prev.filter(i => !i.checked));
+    } catch {
+      toast({ title: "Failed to clear items", variant: "destructive" });
+    }
+  }
 
   function archiveTrip() {
     const name = tripName.trim() || `Market Trip – ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
-    setPastTrips(prev => [{
+    const newTrip: PastTrip = {
       id: Date.now(), name,
       date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
       items: items.map(({ name, category, quantity }) => ({ name, category, quantity })),
       totalSaved: parseFloat(totalSavings.toFixed(2)),
       market: "Accra Central Market",
-    }, ...prev]);
+    };
+    const updated = [newTrip, ...pastTrips];
+    setPastTrips(updated);
+    try { localStorage.setItem("mw_past_trips", JSON.stringify(updated)); } catch {}
+    clearShoppingList().catch(() => {});
     setItems([]); setArchiveConfirm(false); setTripName(""); setActiveTab("past");
   }
 
-  function reuseList(trip: PastTrip) {
-    setItems(trip.items.map((item, i) => ({ id: Date.now() + i, ...item, checked: false })));
-    setReuseTrip(null); setActiveTab("current");
+  async function reuseList(trip: PastTrip) {
+    setReuseTrip(null);
+    try {
+      await clearShoppingList();
+      const created = await Promise.all(
+        trip.items.map(item => addShoppingItem({ name: item.name, quantity: item.quantity }))
+      );
+      setItems(created); setActiveTab("current");
+    } catch {
+      toast({ title: "Failed to reuse list", variant: "destructive" });
+    }
   }
 
   // Auto-add item from ?add= URL param (e.g. navigating from Saved Items)
   useEffect(() => {
     const name = searchParams.get("add");
     if (!name) return;
-    setItems(prev => {
-      if (prev.some(i => i.name === name)) return prev;
-      return [...prev, { id: Date.now(), name, category: "Other", quantity: "1", checked: false }];
-    });
+    addShoppingItem({ name, quantity: "1" })
+      .then(item => setItems(prev => prev.some(i => i.name === item.name) ? prev : [...prev, item]))
+      .catch(() => {});
   }, [searchParams]);
 
   return (

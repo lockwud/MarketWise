@@ -21,7 +21,8 @@ export default function ForgotPasswordPage() {
     setIsLoading(true)
 
     try {
-      const response = await fetch("https://smartpantry-bc4q.onrender.com/auth/forgot-password", {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+      const response = await fetch(`${API_BASE}/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

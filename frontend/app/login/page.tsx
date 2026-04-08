@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, FormEvent, ChangeEvent } from "react";
+import { useState, FormEvent, ChangeEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail, TrendingUp } from "lucide-react";
@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { isAuthenticated, setAuthCookies } from "@/lib/auth";
+import { setAuthCookies } from "@/lib/auth";
 
 interface FormData {
   email: string;
@@ -36,10 +36,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<FormData>({ email: "", password: "" });
   const [errors, setErrors] = useState<FormErrors>({ email: "", password: "" });
-
-  useEffect(() => {
-    if (isAuthenticated()) router.replace("/dashboard");
-  }, [router]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -77,10 +73,10 @@ export default function LoginPage() {
 
     try {
       const { login } = await import("@/lib/api/auth");
-      const data = await login(formData.email, formData.password);
+      const data = await login({ email: formData.email, password: formData.password });
       setAuthCookies(data.token, data.user.role.toLowerCase());
       toast({ title: "Login successful", description: "Welcome back!" });
-      router.push(data.user.role === "ADMIN" ? "/admin" : "/dashboard");
+      router.push(data.user.role === "admin" ? "/admin" : "/dashboard");
     } catch (error: any) {
       toast({
         variant: "destructive",

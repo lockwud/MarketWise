@@ -17,7 +17,7 @@ export function MobileNav() {
   const routes = [
     { href: "/", label: "Home" },
     { href: "/about", label: "About" },
-    { href: "/dashboard", label: "Explore Markets" },
+    { href: "/join", label: "Explore Markets" },
     { href: "/login", label: "Log in" },
     { href: "/signup", label: "Sign Up" },
   ];

@@ -39,7 +39,7 @@ export default function AboutPage() {
           {[
             { href: "/", label: "Home" },
             { href: "/about", label: "About" },
-            { href: "/dashboard", label: "Explore Markets" },
+            { href: "/signup", label: "Explore Markets" },
           ].map((item) => (
             <Link
               key={item.href}
@@ -55,7 +55,7 @@ export default function AboutPage() {
                 Log in
               </Button>
             </Link>
-            <Link href="/signup">
+            <Link href="/join">
               <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-5">
                 Get Started
               </Button>
@@ -213,7 +213,7 @@ export default function AboutPage() {
                   ))}
                 </ul>
                 <div className="mt-6">
-                  <Link href="/signup">
+                  <Link href="/seller-apply">
                     <Button size="sm" className="bg-violet-600 hover:bg-violet-700 text-white rounded-full px-6">
                       Sign up as Seller <ArrowRight className="ml-1 h-3.5 w-3.5" />
                     </Button>
@@ -470,7 +470,7 @@ export default function AboutPage() {
               MarketWise to make confident buying and selling decisions every day.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-4">
-              <Link href="/signup">
+              <Link href="/join">
                 <Button
                   size="lg"
                   className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-10 text-base shadow-lg shadow-emerald-500/30"
@@ -479,7 +479,7 @@ export default function AboutPage() {
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-              <Link href="/dashboard">
+              <Link href="/join">
                 <Button
                   size="lg"
                   variant="outline"

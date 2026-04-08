@@ -1,9 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const { PrismaClient } = require("@prisma/client");
 const { authenticate } = require("../middleware/auth");
 
-const prisma = new PrismaClient();
+const { prisma } = require("../config/database");
 
 // GET /api/price-alerts
 router.get("/", authenticate, async (req, res, next) => {

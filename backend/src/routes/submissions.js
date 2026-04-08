@@ -1,10 +1,9 @@
 const express = require("express");
 const router = express.Router();
-const { PrismaClient } = require("@prisma/client");
 const { authenticate } = require("../middleware/auth");
 const { requireRole } = require("../middleware/roles");
 
-const prisma = new PrismaClient();
+const { prisma } = require("../config/database");
 
 // GET /api/submissions - seller sees own, admin sees all
 router.get("/", authenticate, async (req, res, next) => {

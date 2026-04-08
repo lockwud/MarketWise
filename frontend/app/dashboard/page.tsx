@@ -1,48 +1,38 @@
-"use client";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import DashboardShell from "./_shell";
 
-import { useEffect, useState } from "react";
-import { getUserRole, setAuthCookies } from "@/lib/auth";
-import SellerDashboard from "./seller";
-import BuyerDashboard from "./buyer";
-import { getMe } from "@/lib/api/auth";
-
-function getUserLocation(): string {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem("userLocation") || localStorage.getItem("user_location") || "";
+/**
+ * Decode the JWT payload on the server.
+ * Uses Buffer (Node.js runtime) — same base64url logic as the middleware.
+ */
+function decodeJwtUser(token: string): { role: string; name: string } | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64 + "=".repeat((4 - b64.length % 4) % 4);
+    const payload = JSON.parse(Buffer.from(padded, "base64").toString("utf-8"));
+    if (payload.exp && payload.exp * 1000 < Date.now()) return null;
+    const role = (payload.role as string)?.toLowerCase();
+    if (!role) return null;
+    return { role, name: payload.name ?? "" };
+  } catch {
+    return null;
+  }
 }
 
-export default function DashboardPage() {
-  const [role, setRole] = useState<string | null>(null);
-  const [location, setLocation] = useState("");
+export default async function DashboardPage() {
+  // cookies() in Next.js 15 is async; reads the same cookie jar as the middleware.
+  const token = (await cookies()).get("token")?.value;
 
-  useEffect(() => {
-    const storedRole = getUserRole();
-    if (storedRole) {
-      setRole(storedRole);
-    } else {
-      getMe()
-        .then((user) => {
-          setAuthCookies(undefined as any, user.role.toLowerCase());
-          setRole(user.role.toLowerCase());
-        })
-        .catch(() => {
-          setRole("buyer");
-        });
-    }
-    setLocation(getUserLocation());
-  }, []);
+  if (!token) redirect("/login");
 
-  if (!role) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin" />
-          <p className="text-sm text-gray-500 dark:text-gray-400">Loading dashboard…</p>
-        </div>
-      </div>
-    );
-  }
+  const user = decodeJwtUser(token);
+  if (!user) redirect("/login");
 
-  if (role === "buyer") return <BuyerDashboard userLocation={location} />;
-  return <SellerDashboard userLocation={location} />;
+  if (user.role === "admin") redirect("/admin");
+  if (user.role !== "buyer" && user.role !== "seller") redirect("/login");
+
+  return <DashboardShell role={user.role} userName={user.name} />;
 }

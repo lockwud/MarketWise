@@ -18,7 +18,9 @@
   "license": "ISC",
   "packageManager": "pnpm@10.28.0",
   "dependencies": {
-    "@prisma/client": "^5.22.0",
+    "@prisma/adapter-pg": "^7.3.0",
+    "@prisma/client": "^7.3.0",
+    "pg": "^8.17.2",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
@@ -31,6 +33,6 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.0",
-    "prisma": "^5.22.0"
+    "prisma": "^7.3.0"
   }
 }

@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/mobile-nav";
 import { Badge } from "@/components/ui/badge";
 import { Footer } from "@/components/footer";
+import { decodeToken } from "@/lib/auth";
 
 function StatItem({ target, suffix, label }: { target: number; suffix: string; label: string }) {
   const [count, setCount] = useState(0);
@@ -60,6 +61,13 @@ function StatItem({ target, suffix, label }: { target: number; suffix: string; l
 }
 
 export default function Home() {
+  const [authRole, setAuthRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const payload = decodeToken();
+    if (payload) setAuthRole(payload.role);
+  }, []);
+
   return (
     <div className="flex flex-col min-h-screen bg-white dark:bg-gray-950">
       {/* ── NAVBAR ─────────────────────────────────────────────── */}
@@ -77,7 +85,7 @@ export default function Home() {
           {[
             { href: "/", label: "Home" },
             { href: "/about", label: "About" },
-            { href: "/dashboard", label: "Explore Markets" },
+            { href: "/join", label: "Explore Markets" },
           ].map((item) => (
             <Link
               key={item.href}
@@ -88,16 +96,26 @@ export default function Home() {
             </Link>
           ))}
           <div className="ml-4 flex items-center gap-2">
-            <Link href="/login">
-              <Button variant="ghost" size="sm" className="text-gray-700 dark:text-gray-300">
-                Log in
-              </Button>
-            </Link>
-            <Link href="/signup">
-              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-5">
-                Get Started
-              </Button>
-            </Link>
+            {authRole ? (
+              <Link href={authRole === "admin" ? "/admin" : "/dashboard"}>
+                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-5">
+                  Go to Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost" size="sm" className="text-gray-700 dark:text-gray-300">
+                    Log in
+                  </Button>
+                </Link>
+                <Link href="/signup">
+                  <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-5">
+                    Get Started
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </nav>
         <div className="ml-auto md:hidden">
@@ -151,13 +169,13 @@ export default function Home() {
                 </ul>
 
                 <div className="flex flex-wrap gap-3 pt-2">
-                  <Link href="/signup">
+                  <Link href="/join">
                     <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-8 shadow-lg shadow-emerald-500/30 transition-all hover:shadow-xl hover:shadow-emerald-500/40">
                       Get Started Free
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
-                  <Link href="/dashboard">
+                  <Link href="/signup">
                     <Button size="lg" variant="outline" className="rounded-full px-8 border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-900">
                       Explore Markets
                     </Button>

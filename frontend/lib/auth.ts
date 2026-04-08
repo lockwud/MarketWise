@@ -1,8 +1,9 @@
 // Set authentication cookies
 export const setAuthCookies = (token: string, role: string) => {
-  // Set cookies with appropriate options
-  document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax`;
-  document.cookie = `role=${role}; path=/; max-age=86400; SameSite=Lax`;
+  if (token) {
+    document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Lax`;
+  }
+  document.cookie = `role=${role}; path=/; max-age=604800; SameSite=Lax`;
 };
 
 // Clear authentication cookies
@@ -66,5 +67,38 @@ export const getAuthToken = () => {
     cookie.trim().startsWith("token=")
   );
 
-  return tokenCookie?.split("=")[1] || null;
+  return tokenCookie?.split("=").slice(1).join("=") || null;
+};
+
+// Decode JWT payload (client-side only — reads claims without verifying signature).
+// The signature is verified server-side on every API call.
+export interface TokenPayload {
+  id: string;
+  email: string;
+  name: string;
+  role: string;  // lowercase: "buyer" | "seller" | "admin"
+  exp: number;
+}
+
+export const decodeToken = (): TokenPayload | null => {
+  const token = getAuthToken();
+  if (!token) return null;
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64 + "=".repeat((4 - b64.length % 4) % 4);
+    const payload = JSON.parse(atob(padded));
+    // Reject if expired
+    if (payload.exp && payload.exp * 1000 < Date.now()) return null;
+    return {
+      id: payload.id,
+      email: payload.email,
+      name: payload.name,
+      role: (payload.role as string).toLowerCase(),
+      exp: payload.exp,
+    };
+  } catch {
+    return null;
+  }
 };

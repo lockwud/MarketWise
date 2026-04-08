@@ -1,11 +1,25 @@
 import { request } from "./client";
 
 export interface AdminStats {
-  users: { total: number; buyers: number; sellers: number; admins: number; pending: number };
-  products: { total: number; active: number; alert: number };
-  orders: { total: number; pending: number; confirmed: number; delivered: number; cancelled: number };
-  markets: { total: number };
-  submissions: { total: number; pending: number };
+  users: number;
+  products: number;
+  orders: number;
+  markets: number;
+  pendingSubmissions: number;
+  sellers: number;
+  buyers: number;
+  pendingSellers: number;
+}
+
+export interface AdminMarket {
+  id: string;
+  name: string;
+  city: string;
+  region?: string;
+  status: string;
+  open?: boolean;
+  products: number;
+  sellers: number;
 }
 
 export interface AdminUser {
@@ -17,6 +31,9 @@ export interface AdminUser {
   location?: string;
   phone?: string;
   createdAt: string;
+  joined?: string;
+  products?: number;
+  orders?: number;
 }
 
 export interface AdminSubmission {
@@ -24,14 +41,20 @@ export interface AdminSubmission {
   status: string;
   price: number;
   prevPrice?: number;
+  change?: string;
+  up?: boolean;
   productName: string;
+  category?: string;
   market?: string;
-  submittedAt: string;
-  seller: { id: string; name: string; email: string };
-  product?: { id: string; name: string };
+  seller: string;
+  sellerEmail?: string;
+  submitted?: string;
 }
 
 export const fetchAdminStats = () => request<AdminStats>("/admin/stats");
+
+export const fetchAdminActivity = () =>
+  request<{ weeklyOrders: number[] }>("/admin/activity");
 
 export const fetchAdminUsers = (params?: { role?: string; status?: string; search?: string; page?: number }) => {
   const qs = new URLSearchParams();
@@ -50,6 +73,12 @@ export const suspendUser = (id: string, suspend: boolean) =>
 export const deleteUser = (id: string) =>
   request<{ message: string }>(`/admin/users/${id}`, { method: "DELETE" });
 
+export const verifyUser = (id: string) =>
+  request<AdminUser>(`/admin/users/${id}/verify`, { method: "PUT" });
+
+export const createSellerAccount = (data: { name: string; email: string; password: string; phone?: string; location?: string }) =>
+  request<AdminUser>("/admin/sellers", { method: "POST", body: JSON.stringify(data) });
+
 export const fetchAdminSubmissions = (params?: { status?: string; page?: number }) => {
   const qs = new URLSearchParams();
   if (params?.status) qs.set("status", params.status);
@@ -64,3 +93,12 @@ export const approveSubmission = (id: string) =>
 
 export const rejectSubmission = (id: string) =>
   request<AdminSubmission>(`/admin/submissions/${id}/reject`, { method: "PUT" });
+
+export const flagSubmission = (id: string) =>
+  request<AdminSubmission>(`/admin/submissions/${id}/flag`, { method: "PUT" });
+
+export const fetchAdminMarkets = () =>
+  request<AdminMarket[]>("/admin/markets");
+
+export const createMarket = (data: { name: string; city: string; district?: string; description?: string; region?: string }) =>
+  request<AdminMarket>("/markets", { method: "POST", body: JSON.stringify(data) });

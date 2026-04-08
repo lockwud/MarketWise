@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getUserRole } from "@/lib/auth";
 import {
@@ -45,7 +46,13 @@ const MARKETS = [
   { id: 6, name: "Kejetia Market", city: "Kumasi", region: "Ashanti", sellers: 700, products: 3500, open: true, hours: "5am – 9pm", distance: "212 km", categories: ["Everything"] },
 ];
 
-export default function MarketsPage() {
+export default function RecipesRedirect() {
+  const router = useRouter();
+  useEffect(() => { router.replace("/markets"); }, [router]);
+  return <div className="flex h-screen items-center justify-center"><div className="h-8 w-8 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin" /></div>;
+}
+
+function _MarketsPage_unused() {
   const [role, setRole] = useState<string | null>(null);
   useEffect(() => { setRole(getUserRole() || "seller"); }, []);
   if (!role) return <div className="flex h-screen items-center justify-center"><div className="h-8 w-8 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin" /></div>;

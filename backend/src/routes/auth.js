@@ -3,10 +3,9 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { body, validationResult } = require("express-validator");
-const { PrismaClient } = require("@prisma/client");
 const { authenticate } = require("../middleware/auth");
 
-const prisma = new PrismaClient();
+const { prisma } = require("../config/database");
 
 function signToken(user) {
   return jwt.sign(
@@ -16,14 +15,13 @@ function signToken(user) {
   );
 }
 
-// POST /api/auth/register
+// POST /api/auth/register  — buyers only
 router.post(
   "/register",
   [
     body("name").trim().notEmpty().withMessage("Name is required"),
     body("email").isEmail().normalizeEmail().withMessage("Valid email required"),
     body("password").isLength({ min: 8 }).withMessage("Password minimum 8 characters"),
-    body("role").optional().isIn(["BUYER", "SELLER", "buyer", "seller"]).withMessage("Invalid role"),
   ],
   async (req, res, next) => {
     const errors = validationResult(req);
@@ -32,7 +30,7 @@ router.post(
     }
 
     try {
-      const { name, email, password, role, phone, location } = req.body;
+      const { name, email, password, phone, location } = req.body;
 
       const existing = await prisma.user.findUnique({ where: { email } });
       if (existing) {
@@ -40,22 +38,69 @@ router.post(
       }
 
       const hashed = await bcrypt.hash(password, 12);
-      const assignedRole = (role || "BUYER").toUpperCase();
 
+      // Self-registration always creates a BUYER account.
+      // Seller accounts are created through the seller application flow.
       const user = await prisma.user.create({
-        data: { name, email, password: hashed, role: assignedRole, phone, location },
+        data: { name, email, password: hashed, role: "BUYER", status: "ACTIVE", phone, location },
       });
 
       const token = signToken(user);
       const roleOut = user.role.toLowerCase();
 
-      res.cookie("token", token, { httpOnly: true, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
+      res.cookie("token", token, { sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
       res.cookie("role", roleOut, { sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
 
       return res.status(201).json({
         token,
         role: roleOut,
         user: { id: user.id, name: user.name, email: user.email, role: roleOut },
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// POST /api/auth/seller-apply  — submit a seller application (creates PENDING SELLER account)
+router.post(
+  "/seller-apply",
+  [
+    body("name").trim().notEmpty().withMessage("Name is required"),
+    body("email").isEmail().normalizeEmail().withMessage("Valid email required"),
+    body("password").isLength({ min: 8 }).withMessage("Password minimum 8 characters"),
+  ],
+  async (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(422).json({ message: errors.array()[0].msg });
+    }
+
+    try {
+      const { name, email, password, phone, location, businessName } = req.body;
+
+      const existing = await prisma.user.findUnique({ where: { email } });
+      if (existing) {
+        return res.status(409).json({ message: "Email already registered" });
+      }
+
+      const hashed = await bcrypt.hash(password, 12);
+
+      // Create seller account with PENDING status — must be verified by admin before login
+      await prisma.user.create({
+        data: {
+          name: businessName ? `${name} (${businessName})` : name,
+          email,
+          password: hashed,
+          role: "SELLER",
+          status: "PENDING",
+          phone,
+          location,
+        },
+      });
+
+      return res.status(201).json({
+        message: "Application submitted successfully. An admin will review and verify your account.",
       });
     } catch (err) {
       next(err);
@@ -84,6 +129,10 @@ router.post(
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
+      if (user.status === "PENDING") {
+        return res.status(403).json({ message: "Your account is pending verification. An admin will activate it shortly." });
+      }
+
       if (user.status === "SUSPENDED") {
         return res.status(403).json({ message: "Account suspended. Contact support." });
       }
@@ -96,7 +145,7 @@ router.post(
       const token = signToken(user);
       const roleOut = user.role.toLowerCase();
 
-      res.cookie("token", token, { httpOnly: true, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
+      res.cookie("token", token, { sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
       res.cookie("role", roleOut, { sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
 
       return res.json({
@@ -116,6 +165,25 @@ router.post("/logout", (req, res) => {
   res.clearCookie("role");
   res.json({ message: "Logged out successfully" });
 });
+
+// POST /api/auth/forgot-password
+router.post(
+  "/forgot-password",
+  [body("email").isEmail().normalizeEmail().withMessage("Valid email required")],
+  async (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(422).json({ message: errors.array()[0].msg });
+    }
+    try {
+      // Always return 200 to prevent email enumeration attacks.
+      // Email sending is not yet implemented — this is a stub.
+      res.json({ message: "If an account with that email exists, a password reset link has been sent." });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 // GET /api/auth/me
 router.get("/me", authenticate, async (req, res, next) => {

@@ -25,7 +25,7 @@ const SELLER_NAV = [
   { href: "/inventory", icon: Package, label: "My Products", active: true },
   { href: "/orders", icon: ShoppingCart, label: "Orders" },
   { href: "/shopping-list", icon: BarChart3, label: "Price Tracking" },
-  { href: "/recipes", icon: MapPin, label: "Markets" },
+  { href: "/markets", icon: MapPin, label: "Markets" },
   { href: "/profile", icon: User, label: "Profile" },
 ];
 const BUYER_NAV = [

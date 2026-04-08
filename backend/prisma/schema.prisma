@@ -3,8 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider = "postgresql"
 }
 
 enum Role {
@@ -52,14 +51,14 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  products        Product[]
-  orders          Order[]         @relation("BuyerOrders")
-  sellerOrders    Order[]         @relation("SellerOrders")
-  shoppingItems   ShoppingItem[]
-  savedProducts   SavedProduct[]
-  priceAlerts     PriceAlert[]
-  submissions     PriceSubmission[]
-  priceHistories  PriceHistory[]
+  products       Product[]
+  orders         Order[]           @relation("BuyerOrders")
+  sellerOrders   Order[]           @relation("SellerOrders")
+  shoppingItems  ShoppingItem[]
+  savedProducts  SavedProduct[]
+  priceAlerts    PriceAlert[]
+  submissions    PriceSubmission[]
+  priceHistories PriceHistory[]
 }
 
 model Market {
@@ -78,8 +77,8 @@ model Market {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  products    Product[]
-  orders      Order[]
+  products Product[]
+  orders   Order[]
 }
 
 model Product {
@@ -97,10 +96,10 @@ model Product {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
-  seller        User    @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  sellerId      String
-  market        Market  @relation(fields: [marketId], references: [id])
-  marketId      String
+  seller   User   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  sellerId String
+  market   Market @relation(fields: [marketId], references: [id])
+  marketId String
 
   orderItems     OrderItem[]
   priceHistories PriceHistory[]
@@ -126,7 +125,7 @@ model Order {
 }
 
 model OrderItem {
-  id          String  @id @default(cuid())
+  id          String @id @default(cuid())
   productName String
   quantity    Int
   unit        String
@@ -189,15 +188,15 @@ model PriceHistory {
 }
 
 model PriceSubmission {
-  id        String           @id @default(cuid())
+  id          String           @id @default(cuid())
   productName String
-  price     Float
-  prevPrice Float
-  change    String
-  up        Boolean          @default(true)
-  status    SubmissionStatus @default(PENDING)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  price       Float
+  prevPrice   Float
+  change      String
+  up          Boolean          @default(true)
+  status      SubmissionStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   seller    User    @relation(fields: [sellerId], references: [id])
   sellerId  String

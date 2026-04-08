@@ -9,7 +9,15 @@ export interface SignupRequest {
   name: string;
   email: string;
   password: string;
-  role?: string;
+}
+
+export interface SellerApplyRequest {
+  name: string;
+  email: string;
+  password: string;
+  phone?: string;
+  location?: string;
+  businessName?: string;
 }
 
 export interface AuthResponse {
@@ -32,6 +40,12 @@ export const login = (data: LoginRequest) =>
 
 export const signup = (data: SignupRequest) =>
   request<AuthResponse>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const sellerApply = (data: SellerApplyRequest) =>
+  request<{ message: string }>("/auth/seller-apply", {
     method: "POST",
     body: JSON.stringify(data),
   });

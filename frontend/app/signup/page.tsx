@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent, ChangeEvent, useEffect } from "react";
+import { useState, FormEvent, ChangeEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail, TrendingUp, User } from "lucide-react";
@@ -17,8 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { signup } from "@/lib/api/auth";
-import { setAuthCookies, isAuthenticated } from "@/lib/auth";
+
+import { setAuthCookies } from "@/lib/auth";
 
 interface FormData {
   name: string;
@@ -55,10 +55,6 @@ export default function SignupPage() {
     confirmPassword: "",
     agreeTerms: "",
   });
-
-  useEffect(() => {
-    if (isAuthenticated()) router.replace("/dashboard");
-  }, [router]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -127,7 +123,7 @@ export default function SignupPage() {
       });
       setAuthCookies(data.token, data.user.role.toLowerCase());
       toast({ title: "Signup successful", description: "Welcome to MarketWise!" });
-      router.push(data.user.role === "ADMIN" ? "/admin" : "/dashboard");
+      router.push(data.user.role === "admin" ? "/admin" : "/dashboard");
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -170,10 +166,10 @@ export default function SignupPage() {
         <Card className="mx-auto max-w-md w-full">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold">
-              Create an account
+              Create a Buyer Account
             </CardTitle>
             <CardDescription>
-              Enter your details to start finding the best market prices
+              Track prices, save products, and shop across markets as a buyer.
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleSignup}>
@@ -312,6 +308,12 @@ export default function SignupPage() {
                 Already have an account?{" "}
                 <Link href="/login" className="text-emerald-600 hover:underline">
                   Login
+                </Link>
+              </div>
+              <div className="mt-3 w-full rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-4 py-3 text-center text-sm text-amber-800 dark:text-amber-300">
+                Want to sell on MarketWise?{" "}
+                <Link href="/seller-apply" className="font-semibold text-amber-700 dark:text-amber-400 hover:underline">
+                  Apply as a Seller →
                 </Link>
               </div>
             </CardFooter>

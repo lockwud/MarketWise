@@ -18,7 +18,7 @@ const SELLER_NAV = [
   { href: "/inventory", icon: Package as IconComp, label: "My Products" },
   { href: "/orders", icon: ShoppingCart as IconComp, label: "Orders" },
   { href: "/shopping-list", icon: BarChart3 as IconComp, label: "Price Tracking" },
-  { href: "/recipes", icon: MapPin as IconComp, label: "Markets" },
+  { href: "/markets", icon: MapPin as IconComp, label: "Markets" },
   { href: "/profile", icon: User as IconComp, label: "Profile", active: true },
 ];
 const BUYER_NAV = [
@@ -33,7 +33,7 @@ const ADMIN_NAV = [
   { href: "/admin/user", icon: Users as IconComp, label: "Users" },
   { href: "/admin/delivery", icon: Tag as IconComp, label: "Price Submissions" },
   { href: "/inventory", icon: Package as IconComp, label: "Products" },
-  { href: "/recipes", icon: MapPin as IconComp, label: "Markets" },
+  { href: "/markets", icon: MapPin as IconComp, label: "Markets" },
   { href: "/profile", icon: User as IconComp, label: "Settings", active: true },
 ];
 
