@@ -4,6 +4,7 @@ const { authenticate } = require("../middleware/auth");
 const { requireRole } = require("../middleware/roles");
 
 const { prisma } = require("../config/database");
+const { enrichProductsWithWorldData, matchCommodity } = require("../services/worldMarketPriceService");
 
 // GET /api/products - public, with filters
 router.get("/", async (req, res, next) => {
@@ -118,7 +119,9 @@ router.get("/aggregated", async (req, res, next) => {
       };
     });
 
-    res.json(result);
+    // Enrich commodity products with world market data
+    const enriched = await enrichProductsWithWorldData(result);
+    res.json(enriched);
   } catch (err) {
     next(err);
   }
@@ -258,6 +261,7 @@ router.get("/:id/price-history", async (req, res, next) => {
 });
 
 function computeChange(product) {
+  // For world-market commodities, this is overridden by enrichProductsWithWorldData
   return "0%";
 }
 

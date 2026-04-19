@@ -15,6 +15,7 @@ const savedRoutes = require("./routes/saved");
 const priceAlertRoutes = require("./routes/priceAlerts");
 const submissionRoutes = require("./routes/submissions");
 const adminRoutes = require("./routes/admin");
+const worldPriceRoutes = require("./routes/worldPrices");
 
 const app = express();
 
@@ -40,6 +41,7 @@ app.use("/api/saved", savedRoutes);
 app.use("/api/price-alerts", priceAlertRoutes);
 app.use("/api/submissions", submissionRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/world-prices", worldPriceRoutes);
 
 // Health check
 app.get("/health", (req, res) => res.json({ status: "ok", ts: new Date() }));

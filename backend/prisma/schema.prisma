@@ -204,3 +204,38 @@ model PriceSubmission {
   productId String
   market    String
 }
+
+enum Commodity {
+  DIESEL
+  PETROL
+  CEMENT
+}
+
+model WorldMarketPrice {
+  id               String    @id @default(cuid())
+  commodity        Commodity @unique
+  worldPriceUSD    Float
+  previousPriceUSD Float
+  percentageChange Float     @default(0)
+  exchangeRate     Float     @default(15.5)
+  cediEquivalent   Float
+  unit             String
+  source           String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  history WorldMarketPriceHistory[]
+}
+
+model WorldMarketPriceHistory {
+  id               String   @id @default(cuid())
+  commodity        Commodity
+  worldPriceUSD    Float
+  percentageChange Float
+  exchangeRate     Float
+  cediEquivalent   Float
+  recordedAt       DateTime @default(now())
+
+  worldMarketPrice   WorldMarketPrice @relation(fields: [worldMarketPriceId], references: [id], onDelete: Cascade)
+  worldMarketPriceId String
+}
