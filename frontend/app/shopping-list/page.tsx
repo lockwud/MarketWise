@@ -16,6 +16,7 @@ import { fetchShoppingList, addShoppingItem, updateShoppingItem, deleteShoppingI
 import type { ShoppingItem } from "@/lib/api/shoppingList";
 import { fetchPriceAlerts, createPriceAlert, deletePriceAlert } from "@/lib/api/priceAlerts";
 import { fetchSubmissions } from "@/lib/api/submissions";
+import { fetchAggregatedProducts, type AggregatedProduct } from "@/lib/api/inventory";
 
 
 const PRODUCT_PRICES: Record<string, { lowestPrice: number; avgPrice: number; change: string; up: boolean }> = {
@@ -51,7 +52,6 @@ type IconComp = React.FC<{ className?: string }>;
 const SELLER_NAV = [
   { href: "/dashboard", icon: LayoutDashboard as IconComp, label: "Dashboard" },
   { href: "/inventory", icon: Package as IconComp, label: "My Products" },
-  { href: "/orders", icon: ShoppingCart as IconComp, label: "Orders" },
   { href: "/shopping-list", icon: BarChart3 as IconComp, label: "Price Tracking", active: true },
   { href: "/markets", icon: MapPin as IconComp, label: "Markets" },
   { href: "/profile", icon: User as IconComp, label: "Profile" },
@@ -60,7 +60,6 @@ const BUYER_NAV = [
   { href: "/dashboard", icon: LayoutDashboard as IconComp, label: "Dashboard" },
   { href: "/inventory", icon: Package as IconComp, label: "Browse Products" },
   { href: "/shopping-list", icon: ShoppingCart as IconComp, label: "Shopping List", active: true },
-  { href: "/orders", icon: Heart as IconComp, label: "Saved Items" },
   { href: "/profile", icon: User as IconComp, label: "Profile" },
 ];
 
@@ -274,6 +273,7 @@ function BuyerShoppingList() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [search, setSearch] = useState("");
   const [items, setItems] = useState<ShoppingItem[]>([]);
+  const [products, setProducts] = useState<AggregatedProduct[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [newName, setNewName] = useState("");
   const [newQty, setNewQty] = useState("");
@@ -293,6 +293,12 @@ function BuyerShoppingList() {
       .finally(() => setListLoading(false));
   }, [toast]);
 
+  useEffect(() => {
+    fetchAggregatedProducts()
+      .then(setProducts)
+      .catch(() => setProducts([]));
+  }, []);
+
   // Load past trips from localStorage
   useEffect(() => {
     try {
@@ -306,8 +312,20 @@ function BuyerShoppingList() {
   const filtered = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
 
   const savingsItems = items
-    .map(item => { const p = PRODUCT_PRICES[item.name]; return p ? { name: item.name, saved: p.avgPrice - p.lowestPrice } : null; })
-    .filter((x): x is { name: string; saved: number } => x !== null);
+    .map(item => {
+      const live = products.find(p => p.name.toLowerCase() === item.name.toLowerCase());
+      if (live) {
+        return {
+          name: item.name,
+          saved: Math.max(0, live.avgPrice - live.lowestPrice),
+          bestMarket: live.sellerList?.slice().sort((a, b) => a.price - b.price)[0]?.market ?? live.market,
+          bestPrice: live.lowestPrice,
+        };
+      }
+      const fallback = PRODUCT_PRICES[item.name];
+      return fallback ? { name: item.name, saved: fallback.avgPrice - fallback.lowestPrice, bestMarket: "Best listed market", bestPrice: fallback.lowestPrice } : null;
+    })
+    .filter((x): x is { name: string; saved: number; bestMarket: string; bestPrice: number } => x !== null);
   const totalSavings = savingsItems.reduce((s, x) => s + x.saved, 0);
 
   async function addItem() {
@@ -542,9 +560,12 @@ function BuyerShoppingList() {
                       </h2>
                       <div className="space-y-2">
                         {savingsItems.map(s => (
-                          <div key={s.name} className="flex justify-between items-center">
-                            <span className="text-xs text-gray-500 dark:text-gray-400 truncate pr-2">{s.name}</span>
-                            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex-shrink-0">save GH₵{s.saved.toFixed(2)}</span>
+                          <div key={s.name} className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-800/60">
+                            <div className="flex justify-between items-center gap-2">
+                              <span className="text-xs font-medium text-gray-700 dark:text-gray-200 truncate">{s.name}</span>
+                              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex-shrink-0">save GH₵{s.saved.toFixed(2)}</span>
+                            </div>
+                            <p className="mt-0.5 text-[11px] text-gray-400">Best: GH₵{s.bestPrice.toFixed(2)} at {s.bestMarket}</p>
                           </div>
                         ))}
                         <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex justify-between">

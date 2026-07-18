@@ -28,8 +28,8 @@ async function main() {
   const admin = await prisma.user.create({
     data: {
       name: "Samuel Owusu",
-      email: "admin@marketwise.gh",
-      password: hash("Admin1234!"),
+      email: "asahplockwud3@gmail.com",
+      password: hash("Pass123$1"),
       role: "ADMIN",
       phone: "+233 24 000 0001",
       location: "Accra, Greater Accra",
@@ -95,14 +95,14 @@ async function main() {
 
   // ── Markets ──────────────────────────────────────────────────────
   const marketData = [
-    { name: "Accra Central Market", city: "Accra", region: "Greater Accra", open: true, hours: "6am – 8pm", distance: "2.3 km" },
-    { name: "Kumasi Central Market", city: "Kumasi", region: "Ashanti", open: true, hours: "5am – 9pm", distance: "210 km" },
-    { name: "Kaneshie Market", city: "Accra", region: "Greater Accra", open: true, hours: "7am – 7pm", distance: "5.1 km" },
-    { name: "Takoradi Market", city: "Takoradi", region: "Western", open: false, hours: "6am – 6pm", distance: "248 km" },
-    { name: "Makola Market", city: "Accra", region: "Greater Accra", open: true, hours: "5:30am – 8pm", distance: "3.1 km" },
-    { name: "Madina Market", city: "Accra", region: "Greater Accra", open: true, hours: "7am – 7pm", distance: "6.1 km" },
-    { name: "Kejetia Market", city: "Kumasi", region: "Ashanti", open: true, hours: "5am – 9pm", distance: "212 km" },
-    { name: "Tema Market", city: "Tema", region: "Greater Accra", open: false, hours: "6am – 6pm", distance: "18 km" },
+    { name: "Accra Central Market", city: "Accra", region: "Greater Accra", open: true, hours: "6am – 8pm", distance: "2.3 km", latitude: 5.556, longitude: -0.205 },
+    { name: "Kumasi Central Market", city: "Kumasi", region: "Ashanti", open: true, hours: "5am – 9pm", distance: "210 km", latitude: 6.692, longitude: -1.616 },
+    { name: "Kaneshie Market", city: "Accra", region: "Greater Accra", open: true, hours: "7am – 7pm", distance: "5.1 km", latitude: 5.565, longitude: -0.236 },
+    { name: "Takoradi Market", city: "Takoradi", region: "Western", open: false, hours: "6am – 6pm", distance: "248 km", latitude: 4.899, longitude: -1.760 },
+    { name: "Makola Market", city: "Accra", region: "Greater Accra", open: true, hours: "5:30am – 8pm", distance: "3.1 km", latitude: 5.550, longitude: -0.210 },
+    { name: "Madina Market", city: "Accra", region: "Greater Accra", open: true, hours: "7am – 7pm", distance: "6.1 km", latitude: 5.682, longitude: -0.164 },
+    { name: "Kejetia Market", city: "Kumasi", region: "Ashanti", open: true, hours: "5am – 9pm", distance: "212 km", latitude: 6.695, longitude: -1.622 },
+    { name: "Tema Market", city: "Tema", region: "Greater Accra", open: false, hours: "6am – 6pm", distance: "18 km", latitude: 5.666, longitude: -0.017 },
   ];
 
   const markets = {};
@@ -155,9 +155,13 @@ async function main() {
     });
     products.push(product);
 
-    // Create initial price history
-    await prisma.priceHistory.create({
-      data: { productId: product.id, sellerId: p.seller.id, price: p.price },
+    // Create demo price history for trend charts and forecasts.
+    await prisma.priceHistory.createMany({
+      data: [
+        { productId: product.id, sellerId: p.seller.id, price: +(p.price * 0.94).toFixed(2), recordedAt: new Date(Date.now() - 21 * 86400000) },
+        { productId: product.id, sellerId: p.seller.id, price: +(p.price * 0.98).toFixed(2), recordedAt: new Date(Date.now() - 10 * 86400000) },
+        { productId: product.id, sellerId: p.seller.id, price: p.price },
+      ],
     });
   }
 
@@ -272,7 +276,7 @@ async function main() {
 
   console.log("✅ Seed complete!");
   console.log("\nTest accounts:");
-  console.log("  Admin:  admin@marketwise.gh / Admin1234!");
+  console.log("  Admin:  asahplockwud3@gmail.com / Pass123$1");
   console.log("  Seller: kofi@example.com    / Seller123!");
   console.log("  Buyer:  ama@example.com     / Buyer123!");
 }

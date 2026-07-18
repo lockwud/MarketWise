@@ -4,16 +4,16 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   TrendingUp, Bell, Search, Package,
-  MapPin, ShoppingCart, Plus, LogOut, ArrowUp,
+  MapPin, Plus, LogOut, ArrowUp,
   ArrowDown, LayoutDashboard, User, Menu, AlertCircle, Edit2,
-  Trash2, BarChart3, ShoppingBag,
+  Trash2, BarChart3, ImagePlus,
 } from "lucide-react";
 import type { LocationStatus } from "@/hooks/use-location";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CreateModal, FormField, inputCls, selectCls } from "@/components/ui/create-modal";
 import { fetchProducts, createProduct, deleteProduct, type Product } from "@/lib/api/inventory";
 import { fetchMarkets, type Market } from "@/lib/api/markets";
-import { fetchOrders, type Order } from "@/lib/api/orders";
+import { createSubmission } from "@/lib/api/submissions";
 
 const CATEGORIES = ["Grains", "Vegetables", "Proteins", "Cooking Essentials", "Fruits", "Dairy", "Beverages", "Smartphones", "Laptops", "Desktops"];
 const UNITS = ["kg", "bag", "bunch", "litre", "piece", "crate", "dozen", "unit"];
@@ -22,7 +22,6 @@ const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", active: true },
   { href: "/inventory", icon: Package, label: "My Products", active: false },
-  { href: "/orders", icon: ShoppingCart, label: "Orders", active: false },
   { href: "/shopping-list", icon: BarChart3, label: "Price Tracking", active: false },
   { href: "/markets", icon: MapPin, label: "Markets", active: false },
   { href: "/profile", icon: User, label: "Profile", active: false },
@@ -31,12 +30,12 @@ const navItems = [
 interface ProductForm {
   name: string; category: string; description: string;
   unit: string; stock: string; minStock: string;
-  price: string; comparePrice: string; marketId: string; location: string;
+  price: string; comparePrice: string; marketId: string; location: string; image: string;
 }
 const emptyForm = (): ProductForm => ({
   name: "", category: "", description: "",
   unit: "kg", stock: "", minStock: "",
-  price: "", comparePrice: "", marketId: "", location: "",
+  price: "", comparePrice: "", marketId: "", location: "", image: "",
 });
 
 /* ── component ───────────────────────────────────────────────────── */
@@ -57,26 +56,26 @@ export default function SellerDashboard({
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [markets, setMarkets] = useState<Market[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [createError, setCreateError] = useState("");
   const [form, setForm] = useState<ProductForm>(emptyForm());
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [viewProduct, setViewProduct] = useState<Product | null>(null);
+  const [submitPrice, setSubmitPrice] = useState("");
+  const [submitMessage, setSubmitMessage] = useState("");
 
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [prods, mkts, ords] = await Promise.all([
+      const [prods, mkts] = await Promise.all([
         fetchProducts(),
         fetchMarkets(),
-        fetchOrders(),
       ]);
       setProducts(prods.products);
       setMarkets(mkts);
-      setOrders(ords.orders);
     } catch { /* ignore */ } finally {
       setLoading(false);
     }
@@ -84,17 +83,16 @@ export default function SellerDashboard({
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  // Compute weekly bars from orders created in the last 7 days
-  const weeklyBars = weekDays.map((_, dayIdx) => {
+  const weeklyUpdates = weekDays.map((_, dayIdx) => {
     const now = new Date();
     const dayOfWeek = now.getDay(); // 0=Sun
     const diff = dayIdx - (dayOfWeek === 0 ? 6 : dayOfWeek - 1); // Mon=0
     const date = new Date(now);
     date.setDate(now.getDate() + diff);
     const dateStr = date.toISOString().slice(0, 10);
-    return orders.filter((o) => o.createdAt && o.createdAt.slice(0, 10) === dateStr).length;
+    return products.filter((p) => p.updatedAt && p.updatedAt.slice(0, 10) === dateStr).length;
   });
-  const maxBar = Math.max(...weeklyBars, 1);
+  const maxBar = Math.max(...weeklyUpdates, 1);
 
   const filtered = products.filter(
     (p) =>
@@ -104,23 +102,37 @@ export default function SellerDashboard({
   );
 
   async function handleCreate() {
+    const missing = [];
+    if (!form.name.trim()) missing.push("product name");
+    if (!form.category) missing.push("category");
+    if (!form.marketId) missing.push("market");
+    if (!form.price.trim()) missing.push("selling price");
+    if (missing.length > 0) {
+      setCreateError(`Please enter: ${missing.join(", ")}.`);
+      return;
+    }
+
     setSubmitting(true);
+    setCreateError("");
     try {
       const newProduct = await createProduct({
-        name: form.name,
+        name: form.name.trim(),
         category: form.category,
-        description: form.description,
+        description: form.description.trim(),
         unit: form.unit,
         price: parseFloat(form.price) || 0,
         comparePrice: form.comparePrice ? parseFloat(form.comparePrice) : undefined,
         stock: parseInt(form.stock) || 0,
         minStock: form.minStock ? parseInt(form.minStock) : undefined,
         marketId: form.marketId,
+        image: form.image || undefined,
       });
       setProducts((prev) => [newProduct, ...prev]);
       setForm(emptyForm());
       setCreateOpen(false);
-    } catch { /* ignore */ } finally {
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "Unable to create product.");
+    } finally {
       setSubmitting(false);
     }
   }
@@ -131,15 +143,58 @@ export default function SellerDashboard({
     setDeleteTarget(null);
   }
 
-  const f = (k: keyof ProductForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+  async function handlePriceSubmission() {
+    if (!viewProduct || !submitPrice.trim()) return;
+    const price = Number(submitPrice);
+    if (!Number.isFinite(price) || price <= 0) {
+      setSubmitMessage("Enter a valid price above 0.");
+      return;
+    }
+
+    try {
+      await createSubmission({
+        productId: viewProduct.id,
+        productName: viewProduct.name,
+        price,
+        market: viewProduct.market?.name,
+      });
+      setSubmitPrice("");
+      setSubmitMessage("Price submitted for admin review.");
+    } catch (err) {
+      setSubmitMessage(err instanceof Error ? err.message : "Unable to submit price.");
+    }
+  }
+
+  const f = (k: keyof ProductForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setCreateError("");
     setForm((prev) => ({ ...prev, [k]: e.target.value }));
+  };
+
+  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setCreateError("Please choose an image file.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setCreateError("Product image must be 2MB or smaller.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCreateError("");
+      setForm((prev) => ({ ...prev, image: String(reader.result || "") }));
+    };
+    reader.readAsDataURL(file);
+  }
 
   const totalValue = products.reduce((s, p) => s + p.price * p.stock, 0);
   const lowStockAlerts = products.filter((p) => p.stock < (p.minStock || 10)).length;
   const uniqueMarkets = [...new Set(products.map((p) => p.market?.name).filter(Boolean))];
-  const totalRevenue = orders
-    .filter((o) => o.status === "DELIVERED")
-    .reduce((s, o) => s + (o.total ?? 0), 0);
+  const averagePrice = products.length > 0 ? products.reduce((s, p) => s + p.price, 0) / products.length : 0;
 
   if (loading) {
     return (
@@ -252,7 +307,7 @@ export default function SellerDashboard({
             {[
               { label: "Products Listed", value: products.length, change: `${products.length} active listings`, up: true, Icon: Package, bg: "bg-emerald-50 dark:bg-emerald-900/20", ic: "text-emerald-600 dark:text-emerald-400" },
               { label: "Inventory Value", value: `GH₵${totalValue.toLocaleString()}`, change: "Total stock value", up: true, Icon: BarChart3, bg: "bg-blue-50 dark:bg-blue-900/20", ic: "text-blue-600 dark:text-blue-400" },
-              { label: "Total Revenue", value: `GH₵${totalRevenue.toLocaleString()}`, change: "From delivered orders", up: totalRevenue > 0, Icon: ShoppingBag, bg: "bg-emerald-50 dark:bg-emerald-900/20", ic: "text-emerald-600 dark:text-emerald-400" },
+              { label: "Average Price", value: `GH₵${averagePrice.toFixed(2)}`, change: "Across listed products", up: products.length > 0, Icon: TrendingUp, bg: "bg-emerald-50 dark:bg-emerald-900/20", ic: "text-emerald-600 dark:text-emerald-400" },
               { label: "Active Markets", value: uniqueMarkets.length, change: `Across ${uniqueMarkets.length} market${uniqueMarkets.length !== 1 ? "s" : ""}`, up: true, Icon: MapPin, bg: "bg-violet-50 dark:bg-violet-900/20", ic: "text-violet-600 dark:text-violet-400" },
               { label: "Low Stock Items", value: lowStockAlerts, change: lowStockAlerts > 0 ? "Needs restocking" : "All good", up: lowStockAlerts === 0, Icon: AlertCircle, bg: "bg-amber-50 dark:bg-amber-900/20", ic: "text-amber-600 dark:text-amber-400" },
             ].map(({ label, value, change, up, Icon, bg, ic }) => (
@@ -276,21 +331,21 @@ export default function SellerDashboard({
             <div className="lg:col-span-2 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
               <div className="flex items-center justify-between mb-1">
                 <div>
-                  <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Weekly Orders</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">Orders fulfilled this week</p>
+                  <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Weekly Price Records</h2>
+                  <p className="text-xs text-gray-400 mt-0.5">Product price updates this week</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{weeklyBars.reduce((a, b) => a + b, 0)}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{weeklyUpdates.reduce((a, b) => a + b, 0)}</p>
                   <p className="text-xs text-emerald-500 flex items-center justify-end gap-1"><ArrowUp className="h-3 w-3" />This week</p>
                 </div>
               </div>
               <div className="mt-6 flex items-end gap-2 h-32">
-                {weeklyBars.map((val, i) => (
+                {weeklyUpdates.map((val, i) => (
                   <div key={weekDays[i]} className="flex-1 flex flex-col items-center gap-1">
                     <span className="text-[10px] text-gray-400">{val}</span>
                     <div className="w-full rounded-md bg-emerald-500 hover:bg-emerald-400 transition-colors cursor-pointer relative group"
                       ref={(el) => { if (el) el.style.height = `${((val || 0.5) / maxBar) * 100}%`; }}>
-                      <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-1.5 py-0.5 rounded hidden group-hover:block whitespace-nowrap">{val} orders</div>
+                      <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-1.5 py-0.5 rounded hidden group-hover:block whitespace-nowrap">{val} update{val !== 1 ? "s" : ""}</div>
                     </div>
                     <span className="text-[10px] text-gray-400">{weekDays[i]}</span>
                   </div>
@@ -390,10 +445,11 @@ export default function SellerDashboard({
       <CreateModal
         open={createOpen}
         title="List a New Product"
-        onClose={() => { setCreateOpen(false); setForm(emptyForm()); }}
+        onClose={() => { setCreateOpen(false); setCreateError(""); setForm(emptyForm()); }}
         onSubmit={handleCreate}
         submitLabel="Create Listing"
         submitting={submitting}
+        error={createError}
         tabs={[
           {
             key: "product",
@@ -411,6 +467,27 @@ export default function SellerDashboard({
                 </FormField>
                 <FormField label="Description" hint="Optional — describe quality, variety, etc.">
                   <textarea className={inputCls + " resize-none"} rows={3} placeholder="Fresh, locally sourced..." value={form.description} onChange={f("description")} />
+                </FormField>
+                <FormField label="Product Image" hint="Optional — choose a clear photo of the product">
+                  {form.image ? (
+                    <div className="relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                      <img src={form.image} alt="Product preview" className="h-40 w-full object-cover" />
+                      <button
+                        type="button"
+                        aria-label="Remove product image"
+                        onClick={() => setForm((prev) => ({ ...prev, image: "" }))}
+                        className="absolute right-2 top-2 rounded-full bg-white/90 p-1.5 text-gray-500 shadow-sm hover:text-red-600 dark:bg-gray-900/90 dark:text-gray-400"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex h-32 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 text-sm text-gray-500 transition-colors hover:border-emerald-400 hover:bg-emerald-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-emerald-600 dark:hover:bg-emerald-900/20">
+                      <ImagePlus className="mb-2 h-6 w-6 text-gray-400" />
+                      Click to add product image
+                      <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                    </label>
+                  )}
                 </FormField>
                 <FormField label="Unit of Sale" required>
                   <select aria-label="Unit of sale" className={selectCls} value={form.unit} onChange={f("unit")}>
@@ -486,12 +563,16 @@ export default function SellerDashboard({
       {/* ── VIEW PRODUCT MODAL ── */}
       {viewProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setViewProduct(null)} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setViewProduct(null); setSubmitPrice(""); setSubmitMessage(""); }} />
           <div className="relative z-10 w-full max-w-sm mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-6 animate-in fade-in zoom-in-95 duration-200">
-            <button onClick={() => setViewProduct(null)} className="absolute top-4 right-4 p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"><span className="sr-only">Close</span>✕</button>
+            <button onClick={() => { setViewProduct(null); setSubmitPrice(""); setSubmitMessage(""); }} className="absolute top-4 right-4 p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"><span className="sr-only">Close</span>✕</button>
             <div className="flex items-center gap-3 mb-4">
               <div className="h-12 w-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                <Package className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                {viewProduct.image ? (
+                  <img src={viewProduct.image} alt={viewProduct.name} className="h-full w-full rounded-xl object-cover" />
+                ) : (
+                  <Package className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                )}
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900 dark:text-white">{viewProduct.name}</h3>
@@ -509,10 +590,28 @@ export default function SellerDashboard({
                 <span className="text-sm font-medium text-gray-900 dark:text-white">{v}</span>
               </div>
             ))}
+            <div className="mt-5 rounded-xl bg-gray-50 p-3 dark:bg-gray-800/60">
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">Submit New Price</p>
+              <p className="mt-0.5 text-xs text-gray-400">Admin approval updates comparison and history.</p>
+              <div className="mt-3 flex gap-2">
+                <input
+                  value={submitPrice}
+                  onChange={(e) => { setSubmitPrice(e.target.value); setSubmitMessage(""); }}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="New price"
+                  className="min-w-0 flex-1 rounded-lg border-0 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-900 dark:text-white"
+                />
+                <button onClick={handlePriceSubmission} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700">
+                  Submit
+                </button>
+              </div>
+              {submitMessage && <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">{submitMessage}</p>}
+            </div>
           </div>
         </div>
       )}
     </div>
   );
 }
-

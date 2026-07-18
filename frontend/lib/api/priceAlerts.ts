@@ -7,6 +7,9 @@ export interface PriceAlert {
   targetPrice: number;
   currentPrice: number;
   triggered: boolean;
+  product?: string;
+  target?: number;
+  current?: number;
   createdAt: string;
 }
 

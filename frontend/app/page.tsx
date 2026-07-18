@@ -135,7 +135,7 @@ export default function Home() {
               {/* Left – copy */}
               <div className="flex flex-col gap-6">
                 <Badge className="w-fit bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800 hover:bg-emerald-100 text-sm px-3 py-1">
-                  AI-Powered Price Intelligence
+                  Smarter Market Price Comparison
                 </Badge>
 
                 <h1 className="text-5xl sm:text-6xl xl:text-7xl font-extrabold tracking-tighter leading-none text-gray-900 dark:text-white">

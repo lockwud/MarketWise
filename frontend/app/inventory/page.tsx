@@ -7,23 +7,44 @@ import {
   TrendingUp, Bell, Search, Package, MapPin, ShoppingCart, LogOut,
   LayoutDashboard, User, Menu, Plus, Edit2, Trash2, List, LayoutGrid,
   ArrowUp, ArrowDown, Bookmark, BookmarkCheck, BarChart3, AlertCircle,
-  Star, Building2, Settings, Users, Heart, X, CheckCircle, Filter,
+  Star, Building2, Settings, Users, Heart, X, CheckCircle, Filter, ImagePlus,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CreateModal, FormField, inputCls, selectCls } from "@/components/ui/create-modal";
 import { PageBar, ModalPager } from "@/components/ui/page-bar";
 import type { Product, AggregatedProduct } from "@/lib/api/inventory";
 import type { Market } from "@/lib/api/markets";
+import { useLocation } from "@/hooks/use-location";
 
 /* ─── static constants ─────────────────────────────────────────── */
 const CATEGORIES = ["Grains","Vegetables","Proteins","Cooking Essentials","Fruits","Dairy","Beverages","Smartphones","Laptops","Desktops"];
 const UNITS = ["kg","bag","bunch","litre","piece","crate","dozen","unit"];
+const TRAVEL_COST_PER_KM = 1.5;
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function getDealScore(
+  seller: { price: number; latitude?: number; longitude?: number },
+  userCoords?: { lat: number; lng: number }
+) {
+  const distanceKm = userCoords && seller.latitude != null && seller.longitude != null
+    ? haversineKm(userCoords.lat, userCoords.lng, seller.latitude, seller.longitude)
+    : null;
+  const travelCost = distanceKm == null ? 0 : distanceKm * TRAVEL_COST_PER_KM;
+  return { distanceKm, travelCost, totalCost: seller.price + travelCost };
+}
 
 /* ─── nav configs ─────────────────────────────────────────────── */
 const SELLER_NAV = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/inventory", icon: Package, label: "My Products", active: true },
-  { href: "/orders", icon: ShoppingCart, label: "Orders" },
   { href: "/shopping-list", icon: BarChart3, label: "Price Tracking" },
   { href: "/markets", icon: MapPin, label: "Markets" },
   { href: "/profile", icon: User, label: "Profile" },
@@ -32,7 +53,6 @@ const BUYER_NAV = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/inventory", icon: Package, label: "Browse Products", active: true },
   { href: "/shopping-list", icon: ShoppingCart, label: "Shopping List" },
-  { href: "/orders", icon: Heart, label: "Saved Items" },
   { href: "/profile", icon: User, label: "Profile" },
 ];
 
@@ -40,9 +60,9 @@ const BUYER_NAV = [
 interface ProductForm {
   name: string; category: string; description: string;
   unit: string; stock: string; minStock: string;
-  price: string; comparePrice: string; marketId: string; location: string;
+  price: string; comparePrice: string; marketId: string; location: string; image: string;
 }
-const emptyForm = (): ProductForm => ({ name:"", category:"", description:"", unit:"kg", stock:"", minStock:"", price:"", comparePrice:"", marketId:"", location:"" });
+const emptyForm = (): ProductForm => ({ name:"", category:"", description:"", unit:"kg", stock:"", minStock:"", price:"", comparePrice:"", marketId:"", location:"", image:"" });
 
 /* ─── component ────────────────────────────────────────────────── */
 export default function Inventory() {
@@ -68,6 +88,7 @@ function SellerProducts() {
   const [viewMode, setViewMode] = useState<"list"|"card">("list");
   const [createOpen, setCreateOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [createError, setCreateError] = useState("");
   const [form, setForm] = useState<ProductForm>(emptyForm());
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [viewProduct, setViewProduct] = useState<Product | null>(null);
@@ -99,23 +120,37 @@ function SellerProducts() {
   const sellerPaged = filtered.slice((sellerPage - 1) * sellerPageSize, sellerPage * sellerPageSize);
 
   async function handleCreate() {
+    const missing = [];
+    if (!form.name.trim()) missing.push("product name");
+    if (!form.category) missing.push("category");
+    if (!form.marketId) missing.push("market");
+    if (!form.price.trim()) missing.push("selling price");
+    if (missing.length > 0) {
+      setCreateError(`Please enter: ${missing.join(", ")}.`);
+      return;
+    }
+
     setSubmitting(true);
+    setCreateError("");
     try {
       const { createProduct } = await import("@/lib/api/inventory");
       const created = await createProduct({
-        name: form.name,
+        name: form.name.trim(),
         category: form.category,
-        description: form.description,
+        description: form.description.trim(),
         unit: form.unit,
         stock: parseInt(form.stock) || 0,
         minStock: parseInt(form.minStock) || 10,
         price: parseFloat(form.price) || 0,
         comparePrice: form.comparePrice ? parseFloat(form.comparePrice) : undefined,
         marketId: form.marketId,
+        image: form.image || undefined,
       });
       setProducts(prev => [created as Product, ...prev]);
       setForm(emptyForm()); setCreateOpen(false);
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "Unable to create product.");
+    }
     finally { setSubmitting(false); }
   }
 
@@ -128,8 +163,31 @@ function SellerProducts() {
     setDeleteTarget(null);
   }
 
-  const f = (k: keyof ProductForm) => (e: React.ChangeEvent<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement>) =>
+  const f = (k: keyof ProductForm) => (e: React.ChangeEvent<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement>) => {
+    setCreateError("");
     setForm(prev => ({ ...prev, [k]: e.target.value }));
+  };
+
+  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setCreateError("Please choose an image file.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setCreateError("Product image must be 2MB or smaller.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCreateError("");
+      setForm(prev => ({ ...prev, image: String(reader.result || "") }));
+    };
+    reader.readAsDataURL(file);
+  }
 
   if (loading) return (
     <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
@@ -278,7 +336,11 @@ function SellerProducts() {
                   <div key={p.id} onClick={() => setViewProduct(p)} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden cursor-pointer hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all group">
                     {/* Image / placeholder */}
                     <div className="h-36 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/10 flex items-center justify-center relative">
-                      <Package className="h-14 w-14 text-emerald-300 dark:text-emerald-700" />
+                      {p.image ? (
+                        <img src={p.image} alt={p.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <Package className="h-14 w-14 text-emerald-300 dark:text-emerald-700" />
+                      )}
                       <div className="absolute top-2 right-2">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusCls}`}>{statusLabel}</span>
                       </div>
@@ -324,14 +386,31 @@ function SellerProducts() {
 
       {/* Create Modal */}
       <CreateModal open={createOpen} title="List a New Product"
-        onClose={() => { setCreateOpen(false); setForm(emptyForm()); }}
+        onClose={() => { setCreateOpen(false); setCreateError(""); setForm(emptyForm()); }}
         onSubmit={handleCreate} submitLabel="Create Listing" submitting={submitting}
+        error={createError}
         tabs={[
           { key: "product", label: "Product Info", content: (
             <div>
               <FormField label="Product Name" required><input className={inputCls} placeholder="e.g. Rice (5kg bag)" value={form.name} onChange={f("name")} /></FormField>
               <FormField label="Category" required><select aria-label="Category" className={selectCls} value={form.category} onChange={f("category")}><option value="">Select category</option>{CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}</select></FormField>
               <FormField label="Description" hint="Optional"><textarea className={inputCls + " resize-none"} rows={3} placeholder="Describe quality, variety…" value={form.description} onChange={f("description") as any} /></FormField>
+              <FormField label="Product Image" hint="Optional — choose a clear photo of the product">
+                {form.image ? (
+                  <div className="relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                    <img src={form.image} alt="Product preview" className="h-40 w-full object-cover" />
+                    <button type="button" aria-label="Remove product image" onClick={() => setForm(prev => ({ ...prev, image: "" }))} className="absolute right-2 top-2 rounded-full bg-white/90 p-1.5 text-gray-500 shadow-sm hover:text-red-600 dark:bg-gray-900/90 dark:text-gray-400">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex h-32 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 text-sm text-gray-500 transition-colors hover:border-emerald-400 hover:bg-emerald-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-emerald-600 dark:hover:bg-emerald-900/20">
+                    <ImagePlus className="mb-2 h-6 w-6 text-gray-400" />
+                    Click to add product image
+                    <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                  </label>
+                )}
+              </FormField>
               <FormField label="Unit of Sale" required><select aria-label="Unit" className={selectCls} value={form.unit} onChange={f("unit")}>{UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></FormField>
             </div>
           )},
@@ -398,6 +477,8 @@ function SellerProducts() {
 
 /* ════════════════════════════════════════ BUYER ═════════════════ */
 function BuyerProducts() {
+  const { location } = useLocation();
+  const userCoords = location ? { lat: location.lat, lng: location.lng } : undefined;
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [products, setProducts] = useState<AggregatedProduct[]>([]);
   const [savedIds, setSavedIds] = useState<string[]>([]);
@@ -566,7 +647,11 @@ function BuyerProducts() {
                 return (
                   <div key={pid} onClick={() => setViewProduct(p)} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden cursor-pointer hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all">
                     <div className="h-36 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/10 flex items-center justify-center relative">
-                      <Package className="h-14 w-14 text-blue-200 dark:text-blue-800" />
+                      {p.image ? (
+                        <img src={p.image} alt={p.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <Package className="h-14 w-14 text-blue-200 dark:text-blue-800" />
+                      )}
                       <div className="absolute top-2 right-2">
                         <button onClick={e => { e.stopPropagation(); toggleSave(pid); }} className={`p-1.5 rounded-full transition-colors ${savedIds.includes(pid) ? "bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400" : "bg-white/80 dark:bg-gray-800/80 text-gray-400 hover:text-blue-600"}`}>
                           {savedIds.includes(pid) ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
@@ -623,8 +708,12 @@ function BuyerProducts() {
             )
           : allSellers;
         const MODAL_PAGE_SIZE = 5;
-        const pagedSellers = filteredSellers.slice((sellerPage - 1) * MODAL_PAGE_SIZE, sellerPage * MODAL_PAGE_SIZE);
+        const sellersWithDeal = filteredSellers
+          .map((seller) => ({ ...seller, deal: getDealScore(seller, userCoords) }))
+          .sort((a, b) => a.deal.totalCost - b.deal.totalCost);
+        const pagedSellers = sellersWithDeal.slice((sellerPage - 1) * MODAL_PAGE_SIZE, sellerPage * MODAL_PAGE_SIZE);
         const bestPrice = allSellers.length > 0 ? allSellers[0].price : viewProduct.lowestPrice;
+        const bestOverall = sellersWithDeal[0];
         const pid = allSellers[0]?.productId || viewProduct.name;
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -632,7 +721,11 @@ function BuyerProducts() {
             <div className="relative z-10 w-full max-w-2xl bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
               {/* Header image */}
               <div className="h-40 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/10 flex items-center justify-center relative flex-shrink-0">
-                <Package className="h-20 w-20 text-blue-200 dark:text-blue-800" />
+                {viewProduct.image ? (
+                  <img src={viewProduct.image} alt={viewProduct.name} className="h-full w-full object-cover" />
+                ) : (
+                  <Package className="h-20 w-20 text-blue-200 dark:text-blue-800" />
+                )}
                 <button onClick={() => { setViewProduct(null); setSellerSearch(""); setSellerPage(1); }} aria-label="Close" className="absolute top-3 right-3 p-1.5 rounded-lg bg-white/70 dark:bg-gray-800/70 text-gray-500 hover:text-gray-900 dark:hover:text-white"><X className="h-4 w-4" /></button>
               </div>
               {/* Branding bar */}
@@ -653,6 +746,16 @@ function BuyerProducts() {
                   </button>
                 </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{viewProduct.description}</p>
+                {bestOverall && (
+                  <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-3 dark:border-blue-900/50 dark:bg-blue-950/20">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">Best Overall Deal</p>
+                    <p className="mt-1 text-sm text-gray-700 dark:text-gray-200">
+                      {bestOverall.seller} at {bestOverall.market}: <span className="font-bold text-blue-700 dark:text-blue-300">GH₵{bestOverall.price.toFixed(2)}</span>
+                      {bestOverall.deal.distanceKm != null && ` · ${bestOverall.deal.distanceKm.toFixed(1)} km away · estimated total GH₵${bestOverall.deal.totalCost.toFixed(2)}`}
+                    </p>
+                    {!userCoords && <p className="mt-0.5 text-xs text-gray-400">Enable location to include travel distance in this recommendation.</p>}
+                  </div>
+                )}
                 <div className="grid grid-cols-3 gap-3 mb-4">
                   <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3 text-center">
                     <p className="text-xs text-gray-400 mb-1">Best Price</p>
@@ -671,6 +774,7 @@ function BuyerProducts() {
                   ["Sellers", `${viewProduct.sellers} sellers`],
                   ["Market", viewProduct.market],
                   ["Price Change", viewProduct.change],
+                  ["AI Forecast", viewProduct.prediction ? `GH₵${viewProduct.prediction.predictedPrice.toFixed(2)} · ${viewProduct.prediction.recommendation}` : "Not enough data"],
                   ["Rating", `${viewProduct.rating} / 5.0`],
                 ].map(([k, v]) => (
                   <div key={k} className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
@@ -700,6 +804,7 @@ function BuyerProducts() {
                     <div className="space-y-3">
                       {pagedSellers.map((s) => {
                         const isLowest = s.price === bestPrice;
+                        const isBestOverall = bestOverall?.productId === s.productId;
                         return (
                           <div
                             key={s.id}
@@ -709,9 +814,9 @@ function BuyerProducts() {
                                 : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 hover:border-gray-300 dark:hover:border-gray-600"
                             }`}
                           >
-                            {isLowest && (
-                              <span className="absolute -top-2.5 left-3 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wide">
-                                BEST PRICE
+                            {(isBestOverall || isLowest) && (
+                              <span className={`absolute -top-2.5 left-3 text-white text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wide ${isBestOverall ? "bg-blue-500" : "bg-emerald-500"}`}>
+                                {isBestOverall ? "BEST OVERALL" : "BEST PRICE"}
                               </span>
                             )}
                             <div className="flex-1 min-w-0">
@@ -719,6 +824,9 @@ function BuyerProducts() {
                               <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
                                 <MapPin className="h-3 w-3 flex-shrink-0" />{s.market}
                               </p>
+                              {s.deal.distanceKm != null && (
+                                <p className="mt-0.5 text-[11px] text-blue-500">{s.deal.distanceKm.toFixed(1)} km · est. total GH₵{s.deal.totalCost.toFixed(2)}</p>
+                              )}
                               <div className="flex items-center gap-1 mt-1">
                                 {Array.from({ length: 5 }).map((_, i) => (
                                   <Star key={i} className={`h-3 w-3 ${i < Math.floor(s.rating) ? "text-amber-400 fill-amber-400" : "text-gray-200 dark:text-gray-700"}`} />

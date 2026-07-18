@@ -26,8 +26,9 @@ export interface AggregatedProduct {
   name: string;
   category: string;
   description?: string;
+  image?: string;
   sellers: number;
-  sellerList: { id: string; productId: string; seller: string; market: string; price: number; rating: number; inStock: boolean }[];
+  sellerList: { id: string; productId: string; seller: string; market: string; marketId?: string; city?: string; latitude?: number; longitude?: number; price: number; image?: string; rating: number; inStock: boolean }[];
   avgPrice: number;
   lowestPrice: number;
   highestPrice: number;
@@ -35,6 +36,12 @@ export interface AggregatedProduct {
   change: string;
   up: boolean;
   rating: number;
+  prediction?: {
+    predictedPrice: number;
+    direction: "UP" | "DOWN" | "STABLE";
+    confidence: string;
+    recommendation: string;
+  };
 }
 
 export interface ProductsResponse {

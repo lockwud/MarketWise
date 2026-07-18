@@ -66,7 +66,7 @@ router.get("/aggregated", async (req, res, next) => {
     const products = await prisma.product.findMany({
       where,
       include: {
-        market: { select: { id: true, name: true, city: true } },
+        market: { select: { id: true, name: true, city: true, latitude: true, longitude: true } },
         seller: { select: { id: true, name: true } },
         priceHistories: { orderBy: { recordedAt: "asc" }, take: 6 },
       },
@@ -81,6 +81,7 @@ router.get("/aggregated", async (req, res, next) => {
           name: p.name,
           category: p.category,
           description: p.description,
+          image: p.image,
           sellers: [],
           prices: [],
           markets: new Set(),
@@ -92,7 +93,12 @@ router.get("/aggregated", async (req, res, next) => {
         productId: p.id,
         seller: p.seller.name,
         market: p.market.name,
+        marketId: p.market.id,
+        city: p.market.city,
+        latitude: p.market.latitude,
+        longitude: p.market.longitude,
         price: p.price,
+        image: p.image,
         rating: 4.2,
         inStock: p.stock > 0,
       });
@@ -107,6 +113,7 @@ router.get("/aggregated", async (req, res, next) => {
         name: g.name,
         category: g.category,
         description: g.description,
+        image: g.image,
         sellers: g.sellers.length,
         sellerList: g.sellers,
         avgPrice: Math.round(avg * 10) / 10,
@@ -116,6 +123,7 @@ router.get("/aggregated", async (req, res, next) => {
         change: "0%",
         up: true,
         rating: 4.2,
+        prediction: buildPricePrediction(g.priceHistory, avg),
       };
     });
 
@@ -150,7 +158,12 @@ router.post("/", authenticate, requireRole("SELLER"), async (req, res, next) => 
   try {
     const { name, category, description, unit, price, comparePrice, stock, minStock, marketId, image } = req.body;
     if (!name || !category || price == null || !marketId) {
-      return res.status(422).json({ message: "name, category, price, marketId are required" });
+      const missing = [];
+      if (!name) missing.push("name");
+      if (!category) missing.push("category");
+      if (price == null) missing.push("price");
+      if (!marketId) missing.push("marketId");
+      return res.status(422).json({ message: "name, category, price, marketId are required", missing });
     }
     const market = await prisma.market.findUnique({ where: { id: marketId } });
     if (!market) return res.status(404).json({ message: "Market not found" });
@@ -263,6 +276,23 @@ router.get("/:id/price-history", async (req, res, next) => {
 function computeChange(product) {
   // For world-market commodities, this is overridden by enrichProductsWithWorldData
   return "0%";
+}
+
+function buildPricePrediction(history, fallbackPrice) {
+  const prices = Array.isArray(history) && history.length > 0 ? history : [fallbackPrice];
+  const first = prices[0] || fallbackPrice;
+  const last = prices[prices.length - 1] || fallbackPrice;
+  const movement = prices.length > 1 && first > 0 ? (last - first) / first : 0;
+  const predictedPrice = +(last * (1 + movement * 0.5)).toFixed(2);
+  const direction = predictedPrice > last ? "UP" : predictedPrice < last ? "DOWN" : "STABLE";
+  const confidence = prices.length >= 3 ? "High" : prices.length === 2 ? "Medium" : "Demo";
+  const recommendation = direction === "UP"
+    ? "Buy soon before prices rise"
+    : direction === "DOWN"
+      ? "Wait if you can; prices may fall"
+      : "Price is stable; buy when convenient";
+
+  return { predictedPrice, direction, confidence, recommendation };
 }
 
 module.exports = router;

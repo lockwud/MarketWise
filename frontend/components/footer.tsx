@@ -34,14 +34,6 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  href="/orders"
-                  className="text-sm text-muted-foreground hover:text-primary"
-                >
-                  Price Tracker
-                </Link>
-              </li>
-              <li>
-                <Link
                   href="/shopping-list"
                   className="text-sm text-muted-foreground hover:text-primary"
                 >

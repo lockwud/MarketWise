@@ -15,7 +15,6 @@ type IconComp = React.FC<{ className?: string }>;
 const SELLER_NAV = [
   { href: "/dashboard",    icon: LayoutDashboard as IconComp, label: "Dashboard" },
   { href: "/inventory",    icon: Package        as IconComp, label: "My Products" },
-  { href: "/orders",       icon: ShoppingCart   as IconComp, label: "Orders" },
   { href: "/shopping-list",icon: BarChart3      as IconComp, label: "Price Tracking" },
   { href: "/markets",      icon: MapPin         as IconComp, label: "Markets", active: true },
   { href: "/profile",      icon: User           as IconComp, label: "Profile" },
@@ -24,7 +23,6 @@ const BUYER_NAV = [
   { href: "/dashboard",    icon: LayoutDashboard as IconComp, label: "Dashboard" },
   { href: "/inventory",    icon: Package         as IconComp, label: "Browse Products" },
   { href: "/shopping-list",icon: ShoppingCart    as IconComp, label: "Shopping List" },
-  { href: "/orders",       icon: Heart           as IconComp, label: "Saved Items" },
   { href: "/markets",      icon: MapPin          as IconComp, label: "Markets", active: true },
   { href: "/profile",      icon: User            as IconComp, label: "Profile" },
 ];

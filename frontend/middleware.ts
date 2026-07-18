@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PROTECTED = ["/dashboard", "/admin", "/inventory", "/orders", "/profile", "/shopping-list", "/markets"];
+const PROTECTED = ["/dashboard", "/admin", "/inventory", "/profile", "/shopping-list", "/markets"];
 const AUTH_ONLY = ["/login", "/signup", "/join"];
 const ADMIN_ONLY = ["/admin"];
 
@@ -79,7 +79,6 @@ export const config = {
     "/dashboard/:path*",
     "/admin/:path*",
     "/inventory/:path*",
-    "/orders/:path*",
     "/profile/:path*",
     "/shopping-list/:path*",
     "/recipes/:path*",

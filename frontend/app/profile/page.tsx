@@ -16,7 +16,6 @@ type IconComp = React.FC<{ className?: string }>;
 const SELLER_NAV = [
   { href: "/dashboard", icon: LayoutDashboard as IconComp, label: "Dashboard" },
   { href: "/inventory", icon: Package as IconComp, label: "My Products" },
-  { href: "/orders", icon: ShoppingCart as IconComp, label: "Orders" },
   { href: "/shopping-list", icon: BarChart3 as IconComp, label: "Price Tracking" },
   { href: "/markets", icon: MapPin as IconComp, label: "Markets" },
   { href: "/profile", icon: User as IconComp, label: "Profile", active: true },
@@ -25,7 +24,6 @@ const BUYER_NAV = [
   { href: "/dashboard", icon: LayoutDashboard as IconComp, label: "Dashboard" },
   { href: "/inventory", icon: Package as IconComp, label: "Browse Products" },
   { href: "/shopping-list", icon: ShoppingCart as IconComp, label: "Shopping List" },
-  { href: "/orders", icon: Heart as IconComp, label: "Saved Items" },
   { href: "/profile", icon: User as IconComp, label: "Profile", active: true },
 ];
 const ADMIN_NAV = [
@@ -39,7 +37,7 @@ const ADMIN_NAV = [
 
 const ACTIVITY_SELLER = [
   { text: "Updated price for Rice (50kg bag)", time: "2 hours ago", type: "edit" },
-  { text: "New order #ORD-1042 received", time: "5 hours ago", type: "order" },
+  { text: "Updated market price for Rice", time: "5 hours ago", type: "price" },
   { text: "Added 3 new products to My Products", time: "Yesterday", type: "add" },
   { text: "Price alert triggered for Tomatoes", time: "2 days ago", type: "alert" },
 ];
@@ -76,7 +74,7 @@ function ProfileView({ role }: { role: string }) {
     email: "",
     phone: "",
     location: "",
-    notifications: { orders: true, priceAlerts: role !== "buyer", comments: false, marketUpdates: true },
+    notifications: { priceUpdates: true, priceAlerts: role !== "buyer", comments: false, marketUpdates: true },
   });
 
   useEffect(() => {
@@ -210,11 +208,11 @@ function ProfileView({ role }: { role: string }) {
                   <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Notification Preferences</h2>
                   <div className="space-y-3">
                     {(role !== "buyer" ? [
-                      { key: "orders", label: "Order notifications", desc: "Get notified when you receive new orders" },
+                      { key: "priceUpdates", label: "Price update notifications", desc: "Get notified when your submitted prices are reviewed" },
                       { key: "priceAlerts", label: "Price alerts", desc: "Alerts when market prices change significantly" },
                       { key: "marketUpdates", label: "Market updates", desc: "Weekly market insights and trends" },
                     ] : [
-                      { key: "orders", label: "Shopping reminders", desc: "Reminders to complete your shopping list" },
+                      { key: "priceUpdates", label: "Shopping reminders", desc: "Reminders to check your shopping list and price changes" },
                       { key: "marketUpdates", label: "Market updates", desc: "New products and price drops in your area" },
                       { key: "comments", label: "Activity digest", desc: "Weekly summary of your activity" },
                     ]).map(({ key, label, desc }) => (
@@ -255,7 +253,7 @@ function ProfileView({ role }: { role: string }) {
               <div className="space-y-3">
                 {activity.map((a, i) => (
                   <div key={i} className="flex items-start gap-3 py-2.5 border-b border-gray-100 dark:border-gray-800 last:border-0">
-                    <div className={`h-7 w-7 rounded-full flex items-center justify-center flex-shrink-0 ${a.type === "order" ? "bg-blue-100 dark:bg-blue-900/30" : a.type === "alert" || a.type === "reject" || a.type === "suspend" ? "bg-amber-100 dark:bg-amber-900/30" : "bg-emerald-100 dark:bg-emerald-900/30"}`}>
+                    <div className={`h-7 w-7 rounded-full flex items-center justify-center flex-shrink-0 ${a.type === "price" ? "bg-blue-100 dark:bg-blue-900/30" : a.type === "alert" || a.type === "reject" || a.type === "suspend" ? "bg-amber-100 dark:bg-amber-900/30" : "bg-emerald-100 dark:bg-emerald-900/30"}`}>
                       {a.type === "alert" || a.type === "suspend" ? <AlertCircle className="h-3.5 w-3.5 text-amber-600" /> : <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />}
                     </div>
                     <div className="flex-1 min-w-0">

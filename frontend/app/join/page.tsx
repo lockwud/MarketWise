@@ -73,7 +73,7 @@ export default function JoinPage() {
                   I&apos;m a Seller
                 </h2>
                 <p className="text-gray-500 dark:text-gray-400 text-sm mb-6 leading-relaxed">
-                  List products, manage inventory, submit live prices, and track orders
+                  List products, manage inventory, submit live prices, and track price changes
                   across multiple markets.
                 </p>
                 <Button className="w-full bg-violet-600 hover:bg-violet-700 text-white rounded-full group-hover:shadow-md">

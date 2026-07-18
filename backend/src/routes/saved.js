@@ -19,7 +19,7 @@ router.get("/", authenticate, async (req, res, next) => {
       },
       orderBy: { createdAt: "desc" },
     });
-    res.json(saved.map((s) => s.product));
+    res.json(saved);
   } catch (err) {
     next(err);
   }
@@ -38,6 +38,14 @@ router.post("/", authenticate, async (req, res, next) => {
       where: { userId_productId: { userId: req.user.id, productId } },
       create: { userId: req.user.id, productId },
       update: {},
+      include: {
+        product: {
+          include: {
+            market: { select: { id: true, name: true, city: true } },
+            seller: { select: { id: true, name: true } },
+          },
+        },
+      },
     });
     res.status(201).json(saved);
   } catch (err) {

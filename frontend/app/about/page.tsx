@@ -194,16 +194,16 @@ export default function AboutPage() {
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">For Sellers</h3>
                 <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
-                  List your products, manage your inventory, track orders and stay ahead of market prices.
+                  List your products, manage your inventory, submit prices and stay ahead of market changes.
                 </p>
                 <ul className="space-y-3">
                   {[
                     "List & manage products with stock levels",
                     "Submit and update live market prices",
-                    "Manage incoming orders end-to-end",
+                    "Track submitted price records end-to-end",
                     "Track competitor price changes in real time",
                     "Monitor stock alerts for low-inventory items",
-                    "View weekly sales performance charts",
+                    "View weekly price update charts",
                     "Reach buyers across multiple markets",
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
@@ -267,7 +267,7 @@ export default function AboutPage() {
               <div className="grid sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
                 {[
                   { step: "01", icon: <Package className="h-6 w-6" />, title: "List Your Products", desc: "Add products with prices, stock levels, and market location. Go live in minutes." },
-                  { step: "02", icon: <ClipboardList className="h-6 w-6" />, title: "Manage Orders", desc: "Receive and process buyer orders. Confirm, update, or mark deliveries — all in one place." },
+                  { step: "02", icon: <ClipboardList className="h-6 w-6" />, title: "Submit Prices", desc: "Keep market prices accurate with fresh submissions and product updates in one place." },
                   { step: "03", icon: <TrendingUp className="h-6 w-6" />, title: "Track & Compete", desc: "Monitor real-time price changes across competitors and adjust your listings to stay ahead." },
                 ].map(({ step, icon, title, desc }) => (
                   <div key={step} className="relative bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
@@ -369,8 +369,8 @@ export default function AboutPage() {
                 },
                 {
                   icon: <ClipboardList className="h-5 w-5" />,
-                  title: "Order Management",
-                  desc: "Track orders from pending to delivery. Buyers save items; sellers confirm and fulfill with ease.",
+                  title: "Price Submissions",
+                  desc: "Sellers keep product prices current while admins review submitted market changes.",
                 },
                 {
                   icon: <Heart className="h-5 w-5" />,

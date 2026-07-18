@@ -10,6 +10,7 @@ export interface SavedProduct {
     price: number;
     unit: string;
     status: string;
+    image?: string;
     seller?: { name: string };
     market?: { name: string; city: string };
   };

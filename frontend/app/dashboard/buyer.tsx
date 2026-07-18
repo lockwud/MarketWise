@@ -29,11 +29,23 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+const TRAVEL_COST_PER_KM = 1.5;
+
+function getDealScore(
+  seller: { price: number; latitude?: number; longitude?: number },
+  userCoords?: { lat: number; lng: number }
+) {
+  const distanceKm = userCoords && seller.latitude != null && seller.longitude != null
+    ? haversineKm(userCoords.lat, userCoords.lng, seller.latitude, seller.longitude)
+    : null;
+  const travelCost = distanceKm == null ? 0 : distanceKm * TRAVEL_COST_PER_KM;
+  return { distanceKm, travelCost, totalCost: seller.price + travelCost };
+}
+
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", active: true },
   { href: "/inventory", icon: Package, label: "Browse Products", active: false },
   { href: "/shopping-list", icon: ShoppingCart, label: "Shopping List", active: false },
-  { href: "/orders", icon: Heart, label: "Saved Items", active: false },
   { href: "/profile", icon: User, label: "Profile", active: false },
 ];
 
@@ -585,6 +597,10 @@ export default function BuyerDashboard({
           {compareProductObj && (() => {
             const sellers = compareProductObj.sellerList ?? [];
             const bestPrice = sellers.length ? Math.min(...sellers.map((s) => s.price)) : 0;
+            const sellersWithDeal = sellers
+              .map((seller) => ({ ...seller, deal: getDealScore(seller, userCoords) }))
+              .sort((a, b) => a.deal.totalCost - b.deal.totalCost);
+            const bestOverall = sellersWithDeal[0];
             return (
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
                 <div className="flex items-start justify-between mb-5">
@@ -604,9 +620,29 @@ export default function BuyerDashboard({
                     <X className="h-4 w-4" />
                   </button>
                 </div>
+                {bestOverall && (
+                  <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50 p-3 dark:border-blue-900/50 dark:bg-blue-950/20">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">Best Overall Deal</p>
+                    <p className="mt-1 text-sm text-gray-700 dark:text-gray-200">
+                      {bestOverall.seller} at {bestOverall.market}: <span className="font-bold text-blue-700 dark:text-blue-300">GH₵{bestOverall.price.toFixed(2)}</span>
+                      {bestOverall.deal.distanceKm != null && ` · ${bestOverall.deal.distanceKm.toFixed(1)} km away · estimated total GH₵${bestOverall.deal.totalCost.toFixed(2)}`}
+                    </p>
+                    {!userCoords && <p className="mt-0.5 text-xs text-gray-400">Enable location to include travel distance in the recommendation.</p>}
+                  </div>
+                )}
+                {compareProductObj.prediction && (
+                  <div className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">AI Price Forecast</p>
+                    <p className="mt-1 text-sm text-gray-700 dark:text-gray-200">
+                      Predicted next price: <span className="font-bold text-emerald-700 dark:text-emerald-300">GH₵{compareProductObj.prediction.predictedPrice.toFixed(2)}</span> · {compareProductObj.prediction.recommendation}
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-400">Confidence: {compareProductObj.prediction.confidence}</p>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {sellers.map((seller) => {
+                  {sellersWithDeal.map((seller) => {
                     const isLowest = seller.price === bestPrice;
+                    const isBestOverall = bestOverall?.productId === seller.productId;
                     return (
                       <div
                         key={seller.productId}
@@ -616,9 +652,9 @@ export default function BuyerDashboard({
                             : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 hover:border-gray-300 dark:hover:border-gray-600"
                         }`}
                       >
-                        {isLowest && (
-                          <span className="absolute -top-2.5 left-3 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wide">
-                            BEST PRICE
+                        {(isBestOverall || isLowest) && (
+                          <span className={`absolute -top-2.5 left-3 text-white text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wide ${isBestOverall ? "bg-blue-500" : "bg-emerald-500"}`}>
+                            {isBestOverall ? "BEST OVERALL" : "BEST PRICE"}
                           </span>
                         )}
                         <div className="flex items-start justify-between gap-1">
@@ -639,7 +675,7 @@ export default function BuyerDashboard({
                         </p>
                         <div className="flex items-center justify-between mt-auto pt-2 border-t border-gray-100 dark:border-gray-700">
                           <span className="text-xs text-gray-400">
-                            {seller.market}
+                            {seller.deal.distanceKm == null ? seller.market : `${seller.deal.distanceKm.toFixed(1)} km`}
                           </span>
                           <div className="flex">
                             {Array.from({ length: 5 }).map((_, i) => (
