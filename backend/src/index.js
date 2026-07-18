@@ -1,5 +1,8 @@
 require("dotenv").config();
 const express = require("express");
+const http = require("http");
+const jwt = require("jsonwebtoken");
+const { Server } = require("socket.io");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
@@ -16,8 +19,35 @@ const priceAlertRoutes = require("./routes/priceAlerts");
 const submissionRoutes = require("./routes/submissions");
 const adminRoutes = require("./routes/admin");
 const worldPriceRoutes = require("./routes/worldPrices");
+const notificationRoutes = require("./routes/notifications");
+const { setNotificationSocket } = require("./services/notificationService");
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    credentials: true,
+  },
+});
+setNotificationSocket(io);
+
+io.use((socket, next) => {
+  try {
+    const token = socket.handshake.auth?.token;
+    if (!token) return next(new Error("Authentication required"));
+    socket.user = jwt.verify(token, process.env.JWT_SECRET);
+    next();
+  } catch {
+    next(new Error("Invalid token"));
+  }
+});
+
+io.on("connection", (socket) => {
+  const user = socket.user;
+  socket.join(`user:${user.id}`);
+  socket.join(`role:${user.role}`);
+});
 
 // Security & parsing middleware
 app.use(helmet());
@@ -42,6 +72,7 @@ app.use("/api/price-alerts", priceAlertRoutes);
 app.use("/api/submissions", submissionRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/world-prices", worldPriceRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Health check
 app.get("/health", (req, res) => res.json({ status: "ok", ts: new Date() }));
@@ -57,7 +88,7 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 MarketWise API running on http://localhost:${PORT}`);
 });
 

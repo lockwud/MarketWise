@@ -5,6 +5,7 @@ const { requireRole } = require("../middleware/roles");
 
 const { prisma } = require("../config/database");
 const { enrichProductsWithWorldData, matchCommodity } = require("../services/worldMarketPriceService");
+const { createNotification } = require("../services/notificationService");
 
 // GET /api/products - public, with filters
 router.get("/", async (req, res, next) => {
@@ -185,6 +186,14 @@ router.post("/", authenticate, requireRole("SELLER"), async (req, res, next) => 
     // Record initial price history
     await prisma.priceHistory.create({
       data: { productId: product.id, sellerId: req.user.id, price: Number(price) },
+    });
+
+    createNotification({
+      userId: req.user.id,
+      title: "Product listing created",
+      message: `${product.name} is now listed at GH₵${Number(price).toFixed(2)} in ${product.market.name}.`,
+      type: "success",
+      actionUrl: "/inventory",
     });
 
     res.status(201).json(product);

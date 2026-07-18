@@ -4,6 +4,7 @@ const { authenticate } = require("../middleware/auth");
 const { requireRole } = require("../middleware/roles");
 
 const { prisma } = require("../config/database");
+const { createNotification } = require("../services/notificationService");
 
 // GET /api/submissions - seller sees own, admin sees all
 router.get("/", authenticate, async (req, res, next) => {
@@ -76,6 +77,21 @@ router.post("/", authenticate, requireRole("SELLER"), async (req, res, next) => 
       include: { seller: { select: { id: true, name: true } } },
     });
 
+    createNotification({
+      userId: req.user.id,
+      title: "Price submitted for review",
+      message: `${product.name} was submitted at GH₵${newPrice.toFixed(2)} and is waiting for admin approval.`,
+      type: "info",
+      actionUrl: "/shopping-list",
+    });
+    createNotification({
+      role: "ADMIN",
+      title: "New price submission",
+      message: `${req.user.name || "A seller"} submitted ${product.name} at GH₵${newPrice.toFixed(2)} for review.`,
+      type: "warning",
+      actionUrl: "/admin/delivery",
+    });
+
     res.status(201).json({
       ...submission,
       seller: submission.seller.name,
@@ -108,6 +124,21 @@ router.put("/:id/approve", authenticate, requireRole("ADMIN"), async (req, res, 
       data: { status: "APPROVED" },
     });
 
+    createNotification({
+      userId: sub.sellerId,
+      title: "Price submission approved",
+      message: `${sub.productName} is now approved at GH₵${sub.price.toFixed(2)} and visible in comparisons.`,
+      type: "success",
+      actionUrl: "/shopping-list",
+    });
+    createNotification({
+      role: "BUYER",
+      title: "Market price updated",
+      message: `${sub.productName} has a new approved market price of GH₵${sub.price.toFixed(2)}.`,
+      type: "price",
+      actionUrl: "/inventory",
+    });
+
     res.json({ ...updated, status: "Approved" });
   } catch (err) {
     next(err);
@@ -120,6 +151,13 @@ router.put("/:id/reject", authenticate, requireRole("ADMIN"), async (req, res, n
     const updated = await prisma.priceSubmission.update({
       where: { id: req.params.id },
       data: { status: "REJECTED" },
+    });
+    createNotification({
+      userId: updated.sellerId,
+      title: "Price submission rejected",
+      message: `${updated.productName} at GH₵${updated.price.toFixed(2)} was rejected by admin.`,
+      type: "warning",
+      actionUrl: "/shopping-list",
     });
     res.json({ ...updated, status: "Rejected" });
   } catch (err) {

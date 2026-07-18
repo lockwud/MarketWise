@@ -476,7 +476,7 @@ function SellerProducts() {
 
 /* ════════════════════════════════════════ BUYER ═════════════════ */
 function BuyerProducts() {
-  const { location } = useLocation();
+  const { location, status: locationStatus, requestLocation } = useLocation();
   const userCoords = location ? { lat: location.lat, lng: location.lng } : undefined;
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [products, setProducts] = useState<AggregatedProduct[]>([]);
@@ -752,7 +752,11 @@ function BuyerProducts() {
                       {bestOverall.seller} at {bestOverall.market}: <span className="font-bold text-blue-700 dark:text-blue-300">GH₵{bestOverall.price.toFixed(2)}</span>
                       {bestOverall.deal.distanceKm != null && ` · ${bestOverall.deal.distanceKm.toFixed(1)} km away · estimated total GH₵${bestOverall.deal.totalCost.toFixed(2)}`}
                     </p>
-                    {!userCoords && <p className="mt-0.5 text-xs text-gray-400">Enable location to include travel distance in this recommendation.</p>}
+                    {!userCoords && (
+                      <button onClick={requestLocation} className="mt-1 text-xs font-medium text-blue-600 hover:underline dark:text-blue-300">
+                        {locationStatus === "requesting" ? "Detecting current location..." : "Use my current location for distance"}
+                      </button>
+                    )}
                   </div>
                 )}
                 <div className="grid grid-cols-3 gap-3 mb-4">

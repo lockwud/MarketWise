@@ -3,6 +3,7 @@ const router = express.Router();
 const { authenticate } = require("../middleware/auth");
 
 const { prisma } = require("../config/database");
+const { createNotification } = require("../services/notificationService");
 
 function normalizeAlert(alert) {
   const condition = String(alert.condition || "BELOW").toUpperCase().includes("ABOVE") ? "ABOVE" : "BELOW";
@@ -64,6 +65,13 @@ router.post("/", authenticate, async (req, res, next) => {
         target: Number(target) || 0,
         userId: req.user.id,
       },
+    });
+    createNotification({
+      userId: req.user.id,
+      title: "Price alert created",
+      message: `Monitoring ${product} ${String(condition).toLowerCase()} GH₵${Number(target).toFixed(2)}.`,
+      type: "alert",
+      actionUrl: "/shopping-list",
     });
     res.status(201).json(normalizeAlert(alert));
   } catch (err) {

@@ -106,18 +106,16 @@ export function useLocation() {
       () => {
         setStatus("denied");
       },
-      { timeout: 10_000, maximumAge: 5 * 60 * 1000 }
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 }
     );
   }, []);
 
-  // On first mount: use cached location immediately, or kick off a geolocation request
+  // Show cached location immediately, then refresh from the device GPS.
   useEffect(() => {
     if (location) {
       setStatus("ready");
-    } else {
-      requestLocation();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    requestLocation();
   }, []);
 
   return { location, status, requestLocation };
