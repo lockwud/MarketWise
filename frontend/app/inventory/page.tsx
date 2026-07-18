@@ -57,6 +57,14 @@ const BUYER_NAV = [
   { href: "/shopping-list", icon: ShoppingCart, label: "Shopping List" },
   { href: "/profile", icon: User, label: "Profile" },
 ];
+const ADMIN_NAV = [
+  { href: "/admin", icon: LayoutDashboard, label: "Overview" },
+  { href: "/admin/user", icon: Users, label: "Users" },
+  { href: "/admin/delivery", icon: BarChart3, label: "Price Submissions" },
+  { href: "/inventory", icon: Package, label: "Products", active: true },
+  { href: "/markets", icon: MapPin, label: "Markets" },
+  { href: "/profile", icon: User, label: "Settings" },
+];
 
 /* ─── product form ─────────────────────────────────────────────── */
 interface ProductForm {
@@ -73,11 +81,13 @@ export default function Inventory() {
 
   if (!role) return <AppShellSkeleton />;
   if (role === "buyer") return <BuyerProducts />;
-  return <SellerProducts />;
+  return <SellerProducts role={role === "admin" ? "admin" : "seller"} />;
 }
 
 /* ════════════════════════════════════════ SELLER ════════════════ */
-function SellerProducts() {
+function SellerProducts({ role = "seller" }: { role?: "seller" | "admin" }) {
+  const isAdmin = role === "admin";
+  const navItems = isAdmin ? ADMIN_NAV : SELLER_NAV;
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [markets, setMarkets] = useState<Market[]>([]);
@@ -188,7 +198,7 @@ function SellerProducts() {
     reader.readAsDataURL(file);
   }
 
-  if (loading) return <AppShellSkeleton panelLabel="Seller Panel" />;
+  if (loading) return <AppShellSkeleton panelLabel={isAdmin ? "Admin Panel" : "Seller Panel"} />;
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
@@ -201,9 +211,9 @@ function SellerProducts() {
           {sidebarOpen && <span className="text-base font-bold tracking-tight">Market<span className="text-emerald-400">Wise</span></span>}
           <button aria-label="Toggle sidebar" className="ml-auto text-gray-400 hover:text-white" onClick={() => setSidebarOpen(!sidebarOpen)}><Menu className="h-4 w-4" /></button>
         </div>
-        {sidebarOpen && <div className="px-3 pt-4 pb-1"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Seller Panel</span></div>}
+        {sidebarOpen && <div className="px-3 pt-4 pb-1"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">{isAdmin ? "Admin Panel" : "Seller Panel"}</span></div>}
         <nav className="flex-1 py-2 space-y-1 px-2 overflow-y-auto">
-          {SELLER_NAV.map(({ href, icon: Icon, label, active }) => (
+          {navItems.map(({ href, icon: Icon, label, active }) => (
             <Link key={href} href={href} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${"active" in { active } && active ? "bg-emerald-600 text-white" : "text-gray-400 hover:bg-gray-800 hover:text-white"}`}>
               <Icon className="h-4 w-4 flex-shrink-0" />{sidebarOpen && <span>{label}</span>}
             </Link>
@@ -233,8 +243,8 @@ function SellerProducts() {
           {/* Heading + controls */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">My Products</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Manage your listings, stock and prices</p>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">{isAdmin ? "Products" : "My Products"}</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{isAdmin ? "Review all listed products, prices and markets" : "Manage your listings, stock and prices"}</p>
             </div>
             <div className="flex items-center gap-2">
               {/* View toggle */}
@@ -242,10 +252,12 @@ function SellerProducts() {
                 <button onClick={() => setViewMode("list")} className={`p-1.5 rounded-md transition-colors ${viewMode === "list" ? "bg-white dark:bg-gray-700 shadow text-emerald-600" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"}`} aria-label="List view"><List className="h-4 w-4" /></button>
                 <button onClick={() => setViewMode("card")} className={`p-1.5 rounded-md transition-colors ${viewMode === "card" ? "bg-white dark:bg-gray-700 shadow text-emerald-600" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"}`} aria-label="Card view"><LayoutGrid className="h-4 w-4" /></button>
               </div>
-              <button onClick={() => setCreateOpen(true)}
-                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-5 py-2.5 rounded-full shadow-lg shadow-emerald-500/30 transition-all hover:shadow-emerald-500/50 hover:-translate-y-0.5">
-                <Plus className="h-4 w-4" /> New Product
-              </button>
+              {!isAdmin && (
+                <button onClick={() => setCreateOpen(true)}
+                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-5 py-2.5 rounded-full shadow-lg shadow-emerald-500/30 transition-all hover:shadow-emerald-500/50 hover:-translate-y-0.5">
+                  <Plus className="h-4 w-4" /> New Product
+                </button>
+              )}
             </div>
           </div>
 
