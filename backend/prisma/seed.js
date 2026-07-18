@@ -47,15 +47,25 @@ async function main() {
     },
   });
 
-  const seller2 = await prisma.user.create({
+  const buyer3 = await prisma.user.create({
     data: {
       name: "Mariam Kassim",
       email: "m249937136@gmail.com",
       password: hash("203010377"),
+      role: "BUYER",
+      phone: "+233 24 333 4444",
+      location: "Kumasi, Ashanti",
+    },
+  });
+
+  const seller2 = await prisma.user.create({
+    data: {
+      name: "Yaw Darko",
+      email: "yaw@example.com",
+      password: hash("Seller123!"),
       role: "SELLER",
       phone: "+233 24 333 4444",
       location: "Kumasi, Ashanti",
-      status: "PENDING",
     },
   });
 

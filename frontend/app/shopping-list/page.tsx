@@ -39,6 +39,24 @@ const PRODUCT_PRICES: Record<string, { lowestPrice: number; avgPrice: number; ch
   "HP ProDesk 400 (Ryzen 5)": { lowestPrice: 3900, avgPrice: 4800, change: "-1.5%", up: false },
 };
 
+function normalizeProductName(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, "")
+    .replace(/\b(kg|g|litre|liter|l|ml|bag|crate|dozen|unit|piece|bottle|pack|box|medium|large|small)\b/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function findProductMatch(itemName: string, products: AggregatedProduct[]) {
+  const itemKey = normalizeProductName(itemName);
+  if (!itemKey) return null;
+  return products.find((product) => {
+    const productKey = normalizeProductName(product.name);
+    return productKey === itemKey || productKey.includes(itemKey) || itemKey.includes(productKey);
+  }) ?? null;
+}
+
 interface PastTrip {
   id: number;
   name: string;
@@ -315,19 +333,21 @@ function BuyerShoppingList() {
 
   const savingsItems = items
     .map(item => {
-      const live = products.find(p => p.name.toLowerCase() === item.name.toLowerCase());
+      const live = findProductMatch(item.name, products);
       if (live) {
         return {
           name: item.name,
+          matchedName: live.name,
           saved: Math.max(0, live.avgPrice - live.lowestPrice),
           bestMarket: live.sellerList?.slice().sort((a, b) => a.price - b.price)[0]?.market ?? live.market,
           bestPrice: live.lowestPrice,
+          avgPrice: live.avgPrice,
         };
       }
       const fallback = PRODUCT_PRICES[item.name];
-      return fallback ? { name: item.name, saved: fallback.avgPrice - fallback.lowestPrice, bestMarket: "Best listed market", bestPrice: fallback.lowestPrice } : null;
+      return fallback ? { name: item.name, matchedName: item.name, saved: fallback.avgPrice - fallback.lowestPrice, bestMarket: "Best listed market", bestPrice: fallback.lowestPrice, avgPrice: fallback.avgPrice } : null;
     })
-    .filter((x): x is { name: string; saved: number; bestMarket: string; bestPrice: number } => x !== null);
+    .filter((x): x is { name: string; matchedName: string; saved: number; bestMarket: string; bestPrice: number; avgPrice: number } => x !== null);
   const totalSavings = savingsItems.reduce((s, x) => s + x.saved, 0);
 
   async function addItem() {
@@ -567,7 +587,8 @@ function BuyerShoppingList() {
                               <span className="text-xs font-medium text-gray-700 dark:text-gray-200 truncate">{s.name}</span>
                               <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex-shrink-0">save GH₵{s.saved.toFixed(2)}</span>
                             </div>
-                            <p className="mt-0.5 text-[11px] text-gray-400">Best: GH₵{s.bestPrice.toFixed(2)} at {s.bestMarket}</p>
+                            <p className="mt-0.5 text-[11px] text-gray-400">Matched: {s.matchedName}</p>
+                            <p className="text-[11px] text-gray-400">Avg: GH₵{s.avgPrice.toFixed(2)} vs Best: GH₵{s.bestPrice.toFixed(2)} at {s.bestMarket}</p>
                           </div>
                         ))}
                         <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex justify-between">
