@@ -18,7 +18,7 @@ import { useLocation } from "@/hooks/use-location";
 
 /* ─── static constants ─────────────────────────────────────────── */
 const CATEGORIES = ["Grains","Vegetables","Proteins","Cooking Essentials","Fruits","Dairy","Beverages","Smartphones","Laptops","Desktops"];
-const UNITS = ["kg","bag","bunch","litre","piece","crate","dozen","unit"];
+const UNITS = ["unit","item","piece","kg","g","bag","box","pack","bottle","sachet","litre","ml","crate","dozen","bunch","pair","meter","yard"];
 const TRAVEL_COST_PER_KM = 1.5;
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -60,9 +60,9 @@ const BUYER_NAV = [
 interface ProductForm {
   name: string; category: string; description: string;
   unit: string; stock: string; minStock: string;
-  price: string; comparePrice: string; marketId: string; location: string; image: string;
+  price: string; comparePrice: string; marketId: string; image: string;
 }
-const emptyForm = (): ProductForm => ({ name:"", category:"", description:"", unit:"kg", stock:"", minStock:"", price:"", comparePrice:"", marketId:"", location:"", image:"" });
+const emptyForm = (): ProductForm => ({ name:"", category:"", description:"", unit:"unit", stock:"", minStock:"", price:"", comparePrice:"", marketId:"", image:"" });
 
 /* ─── component ────────────────────────────────────────────────── */
 export default function Inventory() {
@@ -419,7 +419,6 @@ function SellerProducts() {
               <FormField label="Current Stock Quantity" required><input className={inputCls} type="number" min="0" placeholder="e.g. 50" value={form.stock} onChange={f("stock")} /></FormField>
               <FormField label="Low Stock Alert Threshold" hint="Get notified when stock falls below this"><input className={inputCls} type="number" min="0" placeholder="e.g. 10" value={form.minStock} onChange={f("minStock")} /></FormField>
               <FormField label="Market" required><select aria-label="Market" className={selectCls} value={form.marketId} onChange={f("marketId")}><option value="">Select market</option>{markets.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></FormField>
-              <FormField label="Stall / Shop Number" hint="Optional"><input className={inputCls} placeholder="e.g. Block C, Shop 12" value={form.location} onChange={f("location")} /></FormField>
             </div>
           )},
           { key: "price", label: "Price Info", content: (

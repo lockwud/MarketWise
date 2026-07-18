@@ -16,7 +16,7 @@ import { fetchMarkets, type Market } from "@/lib/api/markets";
 import { createSubmission } from "@/lib/api/submissions";
 
 const CATEGORIES = ["Grains", "Vegetables", "Proteins", "Cooking Essentials", "Fruits", "Dairy", "Beverages", "Smartphones", "Laptops", "Desktops"];
-const UNITS = ["kg", "bag", "bunch", "litre", "piece", "crate", "dozen", "unit"];
+const UNITS = ["unit", "item", "piece", "kg", "g", "bag", "box", "pack", "bottle", "sachet", "litre", "ml", "crate", "dozen", "bunch", "pair", "meter", "yard"];
 const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const navItems = [
@@ -30,12 +30,12 @@ const navItems = [
 interface ProductForm {
   name: string; category: string; description: string;
   unit: string; stock: string; minStock: string;
-  price: string; comparePrice: string; marketId: string; location: string; image: string;
+  price: string; comparePrice: string; marketId: string; image: string;
 }
 const emptyForm = (): ProductForm => ({
   name: "", category: "", description: "",
-  unit: "kg", stock: "", minStock: "",
-  price: "", comparePrice: "", marketId: "", location: "", image: "",
+  unit: "unit", stock: "", minStock: "",
+  price: "", comparePrice: "", marketId: "", image: "",
 });
 
 /* ── component ───────────────────────────────────────────────────── */
@@ -513,9 +513,6 @@ export default function SellerDashboard({
                     <option value="">Select market</option>
                     {markets.map((m) => <option key={m.id} value={m.id}>{m.name} — {m.city}</option>)}
                   </select>
-                </FormField>
-                <FormField label="Stall / Shop Number" hint="Optional — helps buyers find you">
-                  <input className={inputCls} placeholder="e.g. Block C, Shop 12" value={form.location} onChange={f("location")} />
                 </FormField>
               </div>
             ),

@@ -5,9 +5,27 @@ const { requireRole } = require("../middleware/roles");
 
 const { prisma } = require("../config/database");
 
+const DEFAULT_MARKETS = [
+  { name: "Accra Central Market", city: "Accra", region: "Greater Accra", open: true, hours: "6am - 8pm", distance: "2.3 km", latitude: 5.556, longitude: -0.205 },
+  { name: "Kumasi Central Market", city: "Kumasi", region: "Ashanti", open: true, hours: "5am - 9pm", distance: "210 km", latitude: 6.692, longitude: -1.616 },
+  { name: "Kaneshie Market", city: "Accra", region: "Greater Accra", open: true, hours: "7am - 7pm", distance: "5.1 km", latitude: 5.565, longitude: -0.236 },
+  { name: "Makola Market", city: "Accra", region: "Greater Accra", open: true, hours: "5:30am - 8pm", distance: "3.1 km", latitude: 5.550, longitude: -0.210 },
+  { name: "Madina Market", city: "Accra", region: "Greater Accra", open: true, hours: "7am - 7pm", distance: "6.1 km", latitude: 5.682, longitude: -0.164 },
+  { name: "Kejetia Market", city: "Kumasi", region: "Ashanti", open: true, hours: "5am - 9pm", distance: "212 km", latitude: 6.695, longitude: -1.622 },
+  { name: "Tema Market", city: "Tema", region: "Greater Accra", open: true, hours: "6am - 6pm", distance: "18 km", latitude: 5.666, longitude: -0.017 },
+  { name: "Takoradi Market", city: "Takoradi", region: "Western", open: true, hours: "6am - 6pm", distance: "248 km", latitude: 4.899, longitude: -1.760 },
+];
+
+async function ensureDefaultMarkets() {
+  const count = await prisma.market.count();
+  if (count > 0) return;
+  await prisma.market.createMany({ data: DEFAULT_MARKETS, skipDuplicates: true });
+}
+
 // GET /api/markets
 router.get("/", async (req, res, next) => {
   try {
+    await ensureDefaultMarkets();
     const { search, city, region } = req.query;
     const where = {};
     if (search) {
