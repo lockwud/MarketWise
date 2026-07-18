@@ -61,6 +61,7 @@ export interface CreateProductData {
   stock: number;
   minStock?: number;
   marketId: string;
+  marketName?: string;
   image?: string;
 }
 

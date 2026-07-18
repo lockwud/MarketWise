@@ -157,7 +157,7 @@ router.get("/:id", async (req, res, next) => {
 // POST /api/products - seller only
 router.post("/", authenticate, requireRole("SELLER"), async (req, res, next) => {
   try {
-    const { name, category, description, unit, price, comparePrice, stock, minStock, marketId, image } = req.body;
+    const { name, category, description, unit, price, comparePrice, stock, minStock, marketId, marketName, image } = req.body;
     if (!name || !category || price == null || !marketId) {
       const missing = [];
       if (!name) missing.push("name");
@@ -166,8 +166,14 @@ router.post("/", authenticate, requireRole("SELLER"), async (req, res, next) => 
       if (!marketId) missing.push("marketId");
       return res.status(422).json({ message: "name, category, price, marketId are required", missing });
     }
-    const market = await prisma.market.findUnique({ where: { id: marketId } });
-    if (!market) return res.status(404).json({ message: "Market not found" });
+    let market = await prisma.market.findUnique({ where: { id: marketId } });
+    if (!market && marketName) {
+      market = await prisma.market.findUnique({ where: { name: marketName } });
+    }
+    if (!market) {
+      market = await prisma.market.findFirst({ orderBy: { name: "asc" } });
+    }
+    if (!market) return res.status(404).json({ message: "Market not found. Please seed or create a market first." });
 
     const product = await prisma.product.create({
       data: {
@@ -175,7 +181,7 @@ router.post("/", authenticate, requireRole("SELLER"), async (req, res, next) => 
         price: Number(price), comparePrice: comparePrice ? Number(comparePrice) : null,
         stock: Number(stock) || 0, minStock: Number(minStock) || 10,
         status: Number(stock) < (Number(minStock) || 10) ? "ALERT" : "ACTIVE",
-        image, sellerId: req.user.id, marketId,
+        image, sellerId: req.user.id, marketId: market.id,
       },
       include: {
         seller: { select: { id: true, name: true } },

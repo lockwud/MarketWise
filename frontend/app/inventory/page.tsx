@@ -12,9 +12,11 @@ import {
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CreateModal, FormField, inputCls, selectCls } from "@/components/ui/create-modal";
 import { PageBar, ModalPager } from "@/components/ui/page-bar";
+import { AppShellSkeleton } from "@/components/ui/app-skeleton";
 import type { Product, AggregatedProduct } from "@/lib/api/inventory";
 import type { Market } from "@/lib/api/markets";
 import { useLocation } from "@/hooks/use-location";
+import { NotificationBell } from "@/components/notifications/notification-drawer";
 
 /* ─── static constants ─────────────────────────────────────────── */
 const CATEGORIES = ["Grains","Vegetables","Proteins","Cooking Essentials","Fruits","Dairy","Beverages","Smartphones","Laptops","Desktops"];
@@ -69,11 +71,7 @@ export default function Inventory() {
   const [role, setRole] = useState<string | null>(null);
   useEffect(() => { setRole(getUserRole() || "buyer"); }, []);
 
-  if (!role) return (
-    <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
-      <div className="h-8 w-8 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin" />
-    </div>
-  );
+  if (!role) return <AppShellSkeleton />;
   if (role === "buyer") return <BuyerProducts />;
   return <SellerProducts />;
 }
@@ -144,6 +142,7 @@ function SellerProducts() {
         price: parseFloat(form.price) || 0,
         comparePrice: form.comparePrice ? parseFloat(form.comparePrice) : undefined,
         marketId: form.marketId,
+        marketName: markets.find(m => m.id === form.marketId)?.name,
         image: form.image || undefined,
       });
       setProducts(prev => [created as Product, ...prev]);
@@ -189,11 +188,7 @@ function SellerProducts() {
     reader.readAsDataURL(file);
   }
 
-  if (loading) return (
-    <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
-      <div className="h-8 w-8 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin" />
-    </div>
-  );
+  if (loading) return <AppShellSkeleton panelLabel="Seller Panel" />;
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
@@ -230,7 +225,7 @@ function SellerProducts() {
               className="w-full pl-9 pr-4 py-2 text-sm bg-gray-100 dark:bg-gray-800 rounded-lg border-0 outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" />
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <button aria-label="Notifications" className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"><Bell className="h-5 w-5" /></button>
+            <NotificationBell />
           </div>
         </header>
 
@@ -529,11 +524,7 @@ function BuyerProducts() {
     } catch (err) { console.error(err); }
   }
 
-  if (loading) return (
-    <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
-      <div className="h-8 w-8 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin" />
-    </div>
-  );
+  if (loading) return <AppShellSkeleton panelLabel="Buyer Panel" />;
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
@@ -566,7 +557,7 @@ function BuyerProducts() {
               className="w-full pl-9 pr-4 py-2 text-sm bg-gray-100 dark:bg-gray-800 rounded-lg border-0 outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" />
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <button aria-label="Notifications" className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"><Bell className="h-5 w-5" /></button>
+            <NotificationBell />
           </div>
         </header>
 

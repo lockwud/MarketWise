@@ -11,9 +11,11 @@ import {
 import type { LocationStatus } from "@/hooks/use-location";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CreateModal, FormField, inputCls, selectCls } from "@/components/ui/create-modal";
+import { AppShellSkeleton } from "@/components/ui/app-skeleton";
 import { fetchProducts, createProduct, deleteProduct, type Product } from "@/lib/api/inventory";
 import { fetchMarkets, type Market } from "@/lib/api/markets";
 import { createSubmission } from "@/lib/api/submissions";
+import { NotificationBell } from "@/components/notifications/notification-drawer";
 
 const CATEGORIES = ["Grains", "Vegetables", "Proteins", "Cooking Essentials", "Fruits", "Dairy", "Beverages", "Smartphones", "Laptops", "Desktops"];
 const UNITS = ["unit", "item", "piece", "kg", "g", "bag", "box", "pack", "bottle", "sachet", "litre", "ml", "crate", "dozen", "bunch", "pair", "meter", "yard"];
@@ -125,6 +127,7 @@ export default function SellerDashboard({
         stock: parseInt(form.stock) || 0,
         minStock: form.minStock ? parseInt(form.minStock) : undefined,
         marketId: form.marketId,
+        marketName: markets.find((m) => m.id === form.marketId)?.name,
         image: form.image || undefined,
       });
       setProducts((prev) => [newProduct, ...prev]);
@@ -196,16 +199,7 @@ export default function SellerDashboard({
   const uniqueMarkets = [...new Set(products.map((p) => p.market?.name).filter(Boolean))];
   const averagePrice = products.length > 0 ? products.reduce((s, p) => s + p.price, 0) / products.length : 0;
 
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin" />
-          <p className="text-sm text-gray-500 dark:text-gray-400">Loading dashboard…</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <AppShellSkeleton panelLabel="Seller Panel" />;
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
@@ -253,10 +247,7 @@ export default function SellerDashboard({
               className="w-full pl-9 pr-4 py-2 text-sm bg-gray-100 dark:bg-gray-800 rounded-lg border-0 outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" />
           </div>
           <div className="ml-auto flex items-center gap-3">
-            <button className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500">
-              <Bell className="h-5 w-5" />
-              {lowStockAlerts > 0 && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500" />}
-            </button>
+            <NotificationBell />
             <button
               onClick={() => setCreateOpen(true)}
               className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors"

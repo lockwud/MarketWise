@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getUserRole } from "@/lib/auth";
+import { decodeToken, getUserRole } from "@/lib/auth";
 import { getMe, updateMe } from "@/lib/api/auth";
 import {
   TrendingUp, Bell, Search, Package, MapPin, ShoppingCart, LogOut,
@@ -10,6 +10,8 @@ import {
   Camera, Mail, Phone, Home, ShieldCheck, Lock, Save,
   CheckCircle, AlertCircle,
 } from "lucide-react";
+import { NotificationBell } from "@/components/notifications/notification-drawer";
+import { AppShellSkeleton } from "@/components/ui/app-skeleton";
 
 type IconComp = React.FC<{ className?: string }>;
 
@@ -57,13 +59,12 @@ const ACTIVITY_ADMIN = [
 export default function ProfilePage() {
   const [role, setRole] = useState<string | null>(null);
   useEffect(() => { setRole(getUserRole() || "buyer"); }, []);
-  if (!role) return <div className="flex h-screen items-center justify-center"><div className="h-8 w-8 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin" /></div>;
+  if (!role) return <AppShellSkeleton />;
   return <ProfileView role={role} />;
 }
 
 function ProfileView({ role }: { role: string }) {
   const nav = role === "admin" ? ADMIN_NAV : role === "buyer" ? BUYER_NAV : SELLER_NAV;
-  const activity = role === "admin" ? ACTIVITY_ADMIN : role === "buyer" ? ACTIVITY_BUYER : ACTIVITY_SELLER;
   const accent = role === "admin" ? "violet" : "emerald";
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [saved, setSaved] = useState(false);
@@ -78,9 +79,15 @@ function ProfileView({ role }: { role: string }) {
   });
 
   useEffect(() => {
+    const tokenUser = decodeToken();
+    if (tokenUser) {
+      setForm(f => ({ ...f, name: tokenUser.name || "", email: tokenUser.email || "" }));
+    }
     getMe().then(user => {
       setForm(f => ({ ...f, name: user.name || "", email: user.email || "", phone: (user as any).phone || "", location: user.location || "" }));
-    }).catch(() => {});
+    }).catch(() => {
+      setSaveError("Could not load latest profile details. Showing account token details.");
+    });
   }, []);
 
   const accentActiveStyle = accent === "violet" ? "bg-violet-600 text-white" : "bg-emerald-600 text-white";
@@ -135,7 +142,7 @@ function ProfileView({ role }: { role: string }) {
           </div>
           <div className="ml-auto flex items-center gap-3">
             {saved && <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium"><CheckCircle className="h-4 w-4" />Saved</span>}
-            <button aria-label="Notifications" className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"><Bell className="h-5 w-5" /></button>
+            <NotificationBell />
           </div>
         </header>
 
@@ -247,23 +254,6 @@ function ProfileView({ role }: { role: string }) {
               </div>
             </div>
 
-            {/* Activity */}
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Recent Activity</h2>
-              <div className="space-y-3">
-                {activity.map((a, i) => (
-                  <div key={i} className="flex items-start gap-3 py-2.5 border-b border-gray-100 dark:border-gray-800 last:border-0">
-                    <div className={`h-7 w-7 rounded-full flex items-center justify-center flex-shrink-0 ${a.type === "price" ? "bg-blue-100 dark:bg-blue-900/30" : a.type === "alert" || a.type === "reject" || a.type === "suspend" ? "bg-amber-100 dark:bg-amber-900/30" : "bg-emerald-100 dark:bg-emerald-900/30"}`}>
-                      {a.type === "alert" || a.type === "suspend" ? <AlertCircle className="h-3.5 w-3.5 text-amber-600" /> : <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-800 dark:text-gray-200">{a.text}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{a.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </main>
       </div>

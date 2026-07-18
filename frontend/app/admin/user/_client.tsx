@@ -11,6 +11,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PageBar } from "@/components/ui/page-bar";
 import { fetchAdminUsers, suspendUser, deleteUser, verifyUser, createSellerAccount, type AdminUser } from "@/lib/api/admin";
 import { useToast } from "@/hooks/use-toast";
+import { NotificationBell } from "@/components/notifications/notification-drawer";
 
 type IconComp = React.FC<{ className?: string }>;
 
@@ -153,7 +154,7 @@ function UserManagement() {
             <input value={search} onChange={e => { setSearch(e.target.value); setUserPage(1); }} placeholder="Search users by name or email…"
               className="w-full pl-9 pr-4 py-2 text-sm bg-gray-100 dark:bg-gray-800 rounded-lg border-0 outline-none focus:ring-2 focus:ring-violet-500 dark:text-white" />
           </div>
-          <div className="ml-auto"><button aria-label="Notifications" className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"><Bell className="h-5 w-5" /></button></div>
+          <div className="ml-auto"><NotificationBell /></div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-6 space-y-5">

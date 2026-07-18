@@ -9,6 +9,8 @@ import {
   LayoutDashboard, User, Menu, BarChart3, Heart, Store, Clock,
   Users, Tag, ChevronRight,
 } from "lucide-react";
+import { NotificationBell } from "@/components/notifications/notification-drawer";
+import { AppShellSkeleton } from "@/components/ui/app-skeleton";
 
 type IconComp = React.FC<{ className?: string }>;
 
@@ -43,13 +45,7 @@ export default function MarketsPage() {
     setRole(payload?.role ?? "buyer");
   }, []);
 
-  if (!role) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="h-8 w-8 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin" />
-      </div>
-    );
-  }
+  if (!role) return <AppShellSkeleton />;
 
   const nav    = role === "admin" ? ADMIN_NAV : role === "buyer" ? BUYER_NAV : SELLER_NAV;
   const accent = role === "admin" ? "violet" : "emerald";
@@ -137,9 +133,7 @@ function MarketsView({ role, nav, accent }: { role: string; nav: typeof SELLER_N
               <input type="checkbox" checked={openOnly} onChange={e => setOpenOnly(e.target.checked)} className="accent-emerald-600 h-4 w-4 rounded" />
               Open now
             </label>
-            <button aria-label="Notifications" className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500">
-              <Bell className="h-5 w-5" />
-            </button>
+            <NotificationBell />
           </div>
         </header>
 

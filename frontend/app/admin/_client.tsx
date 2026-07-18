@@ -13,6 +13,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CreateModal, FormField, inputCls, selectCls } from "@/components/ui/create-modal";
 import { PageBar } from "@/components/ui/page-bar";
 import { useToast } from "@/hooks/use-toast";
+import { NotificationBell } from "@/components/notifications/notification-drawer";
 import {
   fetchAdminStats, fetchAdminActivity, fetchAdminUsers, fetchAdminSubmissions, fetchAdminMarkets,
   suspendUser as apiSuspendUser, deleteUser as apiDeleteUser,
@@ -217,10 +218,7 @@ export default function AdminClient() {
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search users, markets…" className="w-full pl-9 pr-4 py-2 text-sm bg-gray-100 dark:bg-gray-800 rounded-lg border-0 outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" />
           </div>
           <div className="ml-auto flex items-center gap-3">
-            <button className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500">
-              <Bell className="h-5 w-5" />
-              {(pendingCount + flaggedCount) > 0 && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500" />}
-            </button>
+            <NotificationBell />
             <div className="flex items-center gap-2 pl-3 border-l dark:border-gray-700">
               <div className="h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-900 flex items-center justify-center text-violet-700 dark:text-violet-300 text-sm font-bold">A</div>
               <div className="hidden sm:block">

@@ -17,6 +17,8 @@ import type { ShoppingItem } from "@/lib/api/shoppingList";
 import { fetchPriceAlerts, createPriceAlert, deletePriceAlert } from "@/lib/api/priceAlerts";
 import { fetchSubmissions } from "@/lib/api/submissions";
 import { fetchAggregatedProducts, type AggregatedProduct } from "@/lib/api/inventory";
+import { NotificationBell } from "@/components/notifications/notification-drawer";
+import { AppShellSkeleton } from "@/components/ui/app-skeleton";
 
 
 const PRODUCT_PRICES: Record<string, { lowestPrice: number; avgPrice: number; change: string; up: boolean }> = {
@@ -67,7 +69,7 @@ const BUYER_NAV = [
 export default function ShoppingListPage() {
   const [role, setRole] = useState<string | null>(null);
   useEffect(() => { setRole(getUserRole() || "buyer"); }, []);
-  if (!role) return <div className="flex h-screen items-center justify-center"><div className="h-8 w-8 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin" /></div>;
+  if (!role) return <AppShellSkeleton />;
   if (role === "buyer") return <Suspense><BuyerShoppingList /></Suspense>;
   return <SellerPriceTracking />;
 }
@@ -675,7 +677,7 @@ function TopBarComp({ search, setSearch, placeholder }: { search: string; setSea
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder={placeholder}
           className="w-full pl-9 pr-4 py-2 text-sm bg-gray-100 dark:bg-gray-800 rounded-lg border-0 outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" />
       </div>
-      <div className="ml-auto"><button aria-label="Notifications" className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"><Bell className="h-5 w-5" /></button></div>
+      <div className="ml-auto"><NotificationBell /></div>
     </header>
   );
 }

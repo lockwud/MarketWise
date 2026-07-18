@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Bell, Check, CheckCircle2, X } from "lucide-react";
+import { Bell, CheckCircle2, X } from "lucide-react";
 import { io, type Socket } from "socket.io-client";
 import { API_BASE } from "@/lib/api/client";
 import {
@@ -70,12 +70,16 @@ export function NotificationBell() {
 
   async function markRead(id: string) {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-    markNotificationRead(id).catch(() => {});
+    markNotificationRead(id)
+      .then((updated) => setNotifications((prev) => prev.map((n) => (n.id === id ? updated : n))))
+      .catch(() => {});
   }
 
   async function markAllRead() {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    markAllNotificationsRead().catch(() => {});
+    markAllNotificationsRead()
+      .then((data) => setNotifications(data.notifications))
+      .catch(() => {});
   }
 
   return (

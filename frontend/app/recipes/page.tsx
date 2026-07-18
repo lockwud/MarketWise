@@ -9,6 +9,8 @@ import {
   LayoutDashboard, User, Menu, BarChart3, Heart, Store, Clock,
   Users, Tag, ChevronRight, Navigation,
 } from "lucide-react";
+import { NotificationBell } from "@/components/notifications/notification-drawer";
+import { AppShellSkeleton } from "@/components/ui/app-skeleton";
 
 type IconComp = React.FC<{ className?: string }>;
 
@@ -47,13 +49,13 @@ const MARKETS = [
 export default function RecipesRedirect() {
   const router = useRouter();
   useEffect(() => { router.replace("/markets"); }, [router]);
-  return <div className="flex h-screen items-center justify-center"><div className="h-8 w-8 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin" /></div>;
+  return <AppShellSkeleton />;
 }
 
 function _MarketsPage_unused() {
   const [role, setRole] = useState<string | null>(null);
   useEffect(() => { setRole(getUserRole() || "seller"); }, []);
-  if (!role) return <div className="flex h-screen items-center justify-center"><div className="h-8 w-8 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin" /></div>;
+  if (!role) return <AppShellSkeleton />;
   const nav = role === "admin" ? ADMIN_NAV : role === "buyer" ? BUYER_NAV : SELLER_NAV;
   const accent = role === "admin" ? "violet" : "emerald";
   return <MarketsView role={role} nav={nav} accent={accent} />;
@@ -117,7 +119,7 @@ function MarketsView({ role, nav, accent }: { role: string; nav: typeof SELLER_N
             <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
               <input type="checkbox" checked={openOnly} onChange={e => setOpenOnly(e.target.checked)} className="accent-emerald-600 h-4 w-4 rounded" /> Open now
             </label>
-            <button aria-label="Notifications" className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"><Bell className="h-5 w-5" /></button>
+            <NotificationBell />
           </div>
         </header>
 

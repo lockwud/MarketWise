@@ -11,12 +11,14 @@ import {
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PageBar } from "@/components/ui/page-bar";
+import { AppShellSkeleton } from "@/components/ui/app-skeleton";
 import { fetchAggregatedProducts, type AggregatedProduct, getProductPriceHistory } from "@/lib/api/inventory";
 import { fetchMarkets, type Market } from "@/lib/api/markets";
 import { fetchShoppingList, addShoppingItem, updateShoppingItem, deleteShoppingItem, type ShoppingItem } from "@/lib/api/shoppingList";
 import { fetchSavedProducts, saveProduct, removeSavedProduct, type SavedProduct } from "@/lib/api/saved";
 import { fetchPriceAlerts, deletePriceAlert, type PriceAlert } from "@/lib/api/priceAlerts";
 import type { LocationStatus } from "@/hooks/use-location";
+import { NotificationBell } from "@/components/notifications/notification-drawer";
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
@@ -216,16 +218,7 @@ export default function BuyerDashboard({
   const historyProductObj = historyProduct ? products.find((p) => p.name === historyProduct) : null;
   const checkedCount = shoppingList.filter((i) => i.checked).length;
 
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin" />
-          <p className="text-sm text-gray-500 dark:text-gray-400">Loading dashboard…</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <AppShellSkeleton panelLabel="Buyer Panel" />;
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
@@ -276,12 +269,7 @@ export default function BuyerDashboard({
             />
           </div>
           <div className="ml-auto flex items-center gap-3">
-            <button className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500">
-              <Bell className="h-5 w-5" />
-              {priceAlerts.length > 0 && (
-                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-500" />
-              )}
-            </button>
+            <NotificationBell />
             <div className="flex items-center gap-2 pl-3 border-l dark:border-gray-700">
               <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-700 dark:text-blue-300 text-sm font-bold">
                 {userName ? userName[0].toUpperCase() : "B"}
