@@ -71,8 +71,9 @@ interface ProductForm {
   name: string; category: string; description: string;
   unit: string; stock: string; minStock: string;
   price: string; comparePrice: string; marketId: string; image: string;
+  marketOverrides: Record<string, { price: string; stock: string; minStock: string }>;
 }
-const emptyForm = (): ProductForm => ({ name:"", category:"", description:"", unit:"unit", stock:"", minStock:"", price:"", comparePrice:"", marketId:"", image:"" });
+const emptyForm = (): ProductForm => ({ name:"", category:"", description:"", unit:"unit", stock:"", minStock:"", price:"", comparePrice:"", marketId:"", image:"", marketOverrides:{} });
 
 /* ─── component ────────────────────────────────────────────────── */
 export default function Inventory() {
@@ -131,7 +132,8 @@ function SellerProducts({ role = "seller" }: { role?: "seller" | "admin" }) {
     const missing = [];
     if (!form.name.trim()) missing.push("product name");
     if (!form.category) missing.push("category");
-    if (!form.marketId) missing.push("market");
+    const selectedMarketIds = form.marketId.split(",").filter(Boolean);
+    if (selectedMarketIds.length === 0) missing.push("market");
     if (!form.price.trim()) missing.push("selling price");
     if (missing.length > 0) {
       setCreateError(`Please enter: ${missing.join(", ")}.`);
@@ -151,11 +153,19 @@ function SellerProducts({ role = "seller" }: { role?: "seller" | "admin" }) {
         minStock: parseInt(form.minStock) || 10,
         price: parseFloat(form.price) || 0,
         comparePrice: form.comparePrice ? parseFloat(form.comparePrice) : undefined,
-        marketId: form.marketId,
-        marketName: markets.find(m => m.id === form.marketId)?.name,
+        marketId: selectedMarketIds[0],
+        marketName: markets.find(m => m.id === selectedMarketIds[0])?.name,
+        markets: selectedMarketIds.map(id => ({
+          marketId: id,
+          marketName: markets.find(m => m.id === id)?.name,
+          price: form.marketOverrides[id]?.price ? parseFloat(form.marketOverrides[id].price) : undefined,
+          stock: form.marketOverrides[id]?.stock ? parseInt(form.marketOverrides[id].stock) : undefined,
+          minStock: form.marketOverrides[id]?.minStock ? parseInt(form.marketOverrides[id].minStock) : undefined,
+        })),
         image: form.image || undefined,
       });
-      setProducts(prev => [created as Product, ...prev]);
+      const createdProducts: Product[] = Array.isArray((created as any).products) ? (created as any).products : [created as Product];
+      setProducts(prev => [...createdProducts, ...prev]);
       setForm(emptyForm()); setCreateOpen(false);
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : "Unable to create product.");
@@ -176,6 +186,26 @@ function SellerProducts({ role = "seller" }: { role?: "seller" | "admin" }) {
     setCreateError("");
     setForm(prev => ({ ...prev, [k]: e.target.value }));
   };
+
+  function toggleMarket(id: string) {
+    setCreateError("");
+    setForm(prev => {
+      const selected = prev.marketId.split(",").filter(Boolean);
+      const next = selected.includes(id) ? selected.filter(marketId => marketId !== id) : [...selected, id];
+      return { ...prev, marketId: next.join(",") };
+    });
+  }
+
+  function setMarketOverride(id: string, key: "price" | "stock" | "minStock", value: string) {
+    setCreateError("");
+    setForm(prev => ({
+      ...prev,
+      marketOverrides: {
+        ...prev.marketOverrides,
+        [id]: { ...(prev.marketOverrides[id] || { price: "", stock: "", minStock: "" }), [key]: value },
+      },
+    }));
+  }
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -425,7 +455,29 @@ function SellerProducts({ role = "seller" }: { role?: "seller" | "admin" }) {
             <div>
               <FormField label="Current Stock Quantity" required><input className={inputCls} type="number" min="0" placeholder="e.g. 50" value={form.stock} onChange={f("stock")} /></FormField>
               <FormField label="Low Stock Alert Threshold" hint="Get notified when stock falls below this"><input className={inputCls} type="number" min="0" placeholder="e.g. 10" value={form.minStock} onChange={f("minStock")} /></FormField>
-              <FormField label="Market" required><select aria-label="Market" className={selectCls} value={form.marketId} onChange={f("marketId")}><option value="">Select market</option>{markets.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></FormField>
+              <FormField label="Markets" required>
+                <div className="max-h-48 space-y-2 overflow-y-auto rounded-xl border border-gray-200 p-2 dark:border-gray-700">
+                  {markets.map(m => {
+                    const selected = form.marketId.split(",").filter(Boolean).includes(m.id);
+                    return (
+                      <label key={m.id} className={`block rounded-lg border p-2 text-sm transition-colors ${selected ? "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20" : "border-gray-100 dark:border-gray-800"}`}>
+                        <div className="flex items-center gap-2">
+                          <input type="checkbox" checked={selected} onChange={() => toggleMarket(m.id)} className="accent-emerald-600" />
+                          <span className="font-medium text-gray-700 dark:text-gray-200">{m.name}</span>
+                          <span className="text-xs text-gray-400">{m.city}</span>
+                        </div>
+                        {selected && (
+                          <div className="mt-2 grid grid-cols-3 gap-2">
+                            <input className={inputCls} type="number" min="0" step="0.01" placeholder={`Price ${form.price || "shared"}`} value={form.marketOverrides[m.id]?.price || ""} onChange={e => setMarketOverride(m.id, "price", e.target.value)} />
+                            <input className={inputCls} type="number" min="0" placeholder={`Stock ${form.stock || "shared"}`} value={form.marketOverrides[m.id]?.stock || ""} onChange={e => setMarketOverride(m.id, "stock", e.target.value)} />
+                            <input className={inputCls} type="number" min="0" placeholder={`Min ${form.minStock || "10"}`} value={form.marketOverrides[m.id]?.minStock || ""} onChange={e => setMarketOverride(m.id, "minStock", e.target.value)} />
+                          </div>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+              </FormField>
             </div>
           )},
           { key: "price", label: "Price Info", content: (
@@ -497,6 +549,7 @@ function BuyerProducts() {
   const [buyerPageSize, setBuyerPageSize] = useState(15);
   const [sellerSearch, setSellerSearch] = useState("");
   const [sellerPage, setSellerPage] = useState(1);
+  const [listMessage, setListMessage] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -534,6 +587,16 @@ function BuyerProducts() {
         setSavedIds(prev => [...prev, productId]);
       }
     } catch (err) { console.error(err); }
+  }
+
+  async function addBestOverallToList(productName: string) {
+    try {
+      const { addShoppingItem } = await import("@/lib/api/shoppingList");
+      await addShoppingItem({ name: productName, quantity: "1" });
+      setListMessage(`${productName} added to your shopping list.`);
+    } catch {
+      setListMessage("Unable to add item to shopping list.");
+    }
   }
 
   if (loading) return <AppShellSkeleton panelLabel="Buyer Panel" />;
@@ -755,6 +818,13 @@ function BuyerProducts() {
                       {bestOverall.seller} at {bestOverall.market}: <span className="font-bold text-blue-700 dark:text-blue-300">GH₵{bestOverall.price.toFixed(2)}</span>
                       {bestOverall.deal.distanceKm != null && ` · ${bestOverall.deal.distanceKm.toFixed(1)} km away · estimated total GH₵${bestOverall.deal.totalCost.toFixed(2)}`}
                     </p>
+                    <button
+                      onClick={() => addBestOverallToList(viewProduct.name)}
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-700"
+                    >
+                      <ShoppingCart className="h-3.5 w-3.5" /> Add best deal to shopping list
+                    </button>
+                    {listMessage && <p className="mt-2 text-xs text-blue-700 dark:text-blue-300">{listMessage}</p>}
                     {!userCoords && (
                       <button onClick={requestLocation} className="mt-1 text-xs font-medium text-blue-600 hover:underline dark:text-blue-300">
                         {locationStatus === "requesting" ? "Detecting current location..." : "Use my current location for distance"}

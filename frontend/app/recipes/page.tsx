@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getUserRole } from "@/lib/auth";
@@ -229,7 +229,7 @@ function MarketsView({ role, nav, accent }: { role: string; nav: typeof SELLER_N
               <div>
                 <p className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wide">Categories</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {selected.categories.map(cat => <span key={cat} className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-full text-xs font-medium">{cat}</span>)}
+                  {selected.categories.map((cat: string) => <span key={cat} className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-full text-xs font-medium">{cat}</span>)}
                 </div>
               </div>
               <button onClick={() => setSelected(null)} className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors">Close</button>

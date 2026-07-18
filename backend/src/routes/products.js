@@ -157,52 +157,64 @@ router.get("/:id", async (req, res, next) => {
 // POST /api/products - seller only
 router.post("/", authenticate, requireRole("SELLER"), async (req, res, next) => {
   try {
-    const { name, category, description, unit, price, comparePrice, stock, minStock, marketId, marketName, image } = req.body;
-    if (!name || !category || price == null || !marketId) {
+    const { name, category, description, unit, price, comparePrice, stock, minStock, marketId, marketName, markets: marketInputs, image } = req.body;
+    const requestedMarkets = Array.isArray(marketInputs) && marketInputs.length > 0 ? marketInputs : [{ marketId, marketName, price, stock, minStock }];
+    if (!name || !category || price == null || requestedMarkets.length === 0 || !requestedMarkets.some((m) => m.marketId || m.marketName)) {
       const missing = [];
       if (!name) missing.push("name");
       if (!category) missing.push("category");
       if (price == null) missing.push("price");
-      if (!marketId) missing.push("marketId");
+      if (!requestedMarkets.some((m) => m.marketId || m.marketName)) missing.push("marketId");
       return res.status(422).json({ message: "name, category, price, marketId are required", missing });
     }
-    let market = await prisma.market.findUnique({ where: { id: marketId } });
-    if (!market && marketName) {
-      market = await prisma.market.findUnique({ where: { name: marketName } });
-    }
-    if (!market) {
-      market = await prisma.market.findFirst({ orderBy: { name: "asc" } });
-    }
-    if (!market) return res.status(404).json({ message: "Market not found. Please seed or create a market first." });
 
-    const product = await prisma.product.create({
-      data: {
-        name, category, description, unit: unit || "kg",
-        price: Number(price), comparePrice: comparePrice ? Number(comparePrice) : null,
-        stock: Number(stock) || 0, minStock: Number(minStock) || 10,
-        status: Number(stock) < (Number(minStock) || 10) ? "ALERT" : "ACTIVE",
-        image, sellerId: req.user.id, marketId: market.id,
-      },
-      include: {
-        seller: { select: { id: true, name: true } },
-        market: { select: { id: true, name: true, city: true } },
-      },
-    });
+    const createdProducts = [];
+    const seenMarketIds = new Set();
 
-    // Record initial price history
-    await prisma.priceHistory.create({
-      data: { productId: product.id, sellerId: req.user.id, price: Number(price) },
-    });
+    for (const input of requestedMarkets) {
+      let market = input.marketId ? await prisma.market.findUnique({ where: { id: input.marketId } }) : null;
+      if (!market && input.marketName) {
+        market = await prisma.market.findUnique({ where: { name: input.marketName } });
+      }
+      if (!market) continue;
+      if (seenMarketIds.has(market.id)) continue;
+      seenMarketIds.add(market.id);
+
+      const listingPrice = input.price != null && input.price !== "" ? Number(input.price) : Number(price);
+      const listingStock = input.stock != null && input.stock !== "" ? Number(input.stock) : Number(stock) || 0;
+      const listingMinStock = input.minStock != null && input.minStock !== "" ? Number(input.minStock) : Number(minStock) || 10;
+
+      const product = await prisma.product.create({
+        data: {
+          name, category, description, unit: unit || "unit",
+          price: listingPrice, comparePrice: comparePrice ? Number(comparePrice) : null,
+          stock: listingStock, minStock: listingMinStock,
+          status: listingStock < listingMinStock ? "ALERT" : "ACTIVE",
+          image, sellerId: req.user.id, marketId: market.id,
+        },
+        include: {
+          seller: { select: { id: true, name: true } },
+          market: { select: { id: true, name: true, city: true } },
+        },
+      });
+
+      await prisma.priceHistory.create({
+        data: { productId: product.id, sellerId: req.user.id, price: listingPrice },
+      });
+      createdProducts.push(product);
+    }
+
+    if (createdProducts.length === 0) return res.status(404).json({ message: "Market not found. Please select valid markets." });
 
     createNotification({
       userId: req.user.id,
       title: "Product listing created",
-      message: `${product.name} is now listed at GH₵${Number(price).toFixed(2)} in ${product.market.name}.`,
+      message: `${name} was listed in ${createdProducts.length} market${createdProducts.length !== 1 ? "s" : ""}.`,
       type: "success",
       actionUrl: "/inventory",
     });
 
-    res.status(201).json(product);
+    res.status(201).json(createdProducts.length === 1 ? createdProducts[0] : { products: createdProducts });
   } catch (err) {
     next(err);
   }

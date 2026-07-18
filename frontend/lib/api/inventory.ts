@@ -62,6 +62,7 @@ export interface CreateProductData {
   minStock?: number;
   marketId: string;
   marketName?: string;
+  markets?: { marketId: string; marketName?: string; price?: number; stock?: number; minStock?: number }[];
   image?: string;
 }
 
@@ -87,7 +88,7 @@ export const fetchProducts = (params?: { search?: string; category?: string; sel
 export const getProduct = (id: string) => request<Product>(`/products/${id}`);
 
 export const createProduct = (data: CreateProductData) =>
-  request<Product>("/products", { method: "POST", body: JSON.stringify(data) });
+  request<Product | { products: Product[] }>("/products", { method: "POST", body: JSON.stringify(data) });
 
 export const updateProduct = (id: string, data: Partial<CreateProductData & { status?: string }>) =>
   request<Product>(`/products/${id}`, { method: "PUT", body: JSON.stringify(data) });

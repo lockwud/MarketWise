@@ -19,6 +19,7 @@ import { fetchSubmissions } from "@/lib/api/submissions";
 import { fetchAggregatedProducts, type AggregatedProduct } from "@/lib/api/inventory";
 import { NotificationBell } from "@/components/notifications/notification-drawer";
 import { AppShellSkeleton } from "@/components/ui/app-skeleton";
+import { useLocation } from "@/hooks/use-location";
 
 
 const PRODUCT_PRICES: Record<string, { lowestPrice: number; avgPrice: number; change: string; up: boolean }> = {
@@ -55,6 +56,28 @@ function findProductMatch(itemName: string, products: AggregatedProduct[]) {
     const productKey = normalizeProductName(product.name);
     return productKey === itemKey || productKey.includes(itemKey) || itemKey.includes(productKey);
   }) ?? null;
+}
+
+const TRAVEL_COST_PER_KM = 1.5;
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function getDealScore(
+  seller: { price: number; latitude?: number; longitude?: number },
+  userCoords?: { lat: number; lng: number }
+) {
+  const distanceKm = userCoords && seller.latitude != null && seller.longitude != null
+    ? haversineKm(userCoords.lat, userCoords.lng, seller.latitude, seller.longitude)
+    : null;
+  const travelCost = distanceKm == null ? 0 : distanceKm * TRAVEL_COST_PER_KM;
+  return { distanceKm, travelCost, totalCost: seller.price + travelCost };
 }
 
 interface PastTrip {
@@ -289,6 +312,8 @@ function SellerPriceTracking() {
 /* ═══════════════════════ BUYER SHOPPING LIST ════════════════════ */
 function BuyerShoppingList() {
   const { toast } = useToast();
+  const { location, status: locationStatus, requestLocation } = useLocation();
+  const userCoords = location ? { lat: location.lat, lng: location.lng } : undefined;
   const searchParams = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [search, setSearch] = useState("");
@@ -335,19 +360,28 @@ function BuyerShoppingList() {
     .map(item => {
       const live = findProductMatch(item.name, products);
       if (live) {
+        const bestOverall = live.sellerList
+          ?.map((seller) => ({ ...seller, deal: getDealScore(seller, userCoords) }))
+          .sort((a, b) => a.deal.totalCost - b.deal.totalCost)[0];
+        const bestPriceSeller = live.sellerList?.slice().sort((a, b) => a.price - b.price)[0];
+        const selected = bestOverall ?? bestPriceSeller;
+        const comparisonCost = bestOverall?.deal.distanceKm != null ? bestOverall.deal.totalCost : (selected?.price ?? live.lowestPrice);
         return {
           name: item.name,
           matchedName: live.name,
-          saved: Math.max(0, live.avgPrice - live.lowestPrice),
-          bestMarket: live.sellerList?.slice().sort((a, b) => a.price - b.price)[0]?.market ?? live.market,
-          bestPrice: live.lowestPrice,
+          saved: Math.max(0, live.avgPrice - comparisonCost),
+          bestMarket: selected?.market ?? live.market,
+          bestPrice: selected?.price ?? live.lowestPrice,
           avgPrice: live.avgPrice,
+          distanceKm: bestOverall?.deal.distanceKm ?? null,
+          estimatedTotal: comparisonCost,
+          usedDistance: bestOverall?.deal.distanceKm != null,
         };
       }
       const fallback = PRODUCT_PRICES[item.name];
-      return fallback ? { name: item.name, matchedName: item.name, saved: fallback.avgPrice - fallback.lowestPrice, bestMarket: "Best listed market", bestPrice: fallback.lowestPrice, avgPrice: fallback.avgPrice } : null;
+      return fallback ? { name: item.name, matchedName: item.name, saved: fallback.avgPrice - fallback.lowestPrice, bestMarket: "Best listed market", bestPrice: fallback.lowestPrice, avgPrice: fallback.avgPrice, distanceKm: null, estimatedTotal: fallback.lowestPrice, usedDistance: false } : null;
     })
-    .filter((x): x is { name: string; matchedName: string; saved: number; bestMarket: string; bestPrice: number; avgPrice: number } => x !== null);
+    .filter((x): x is { name: string; matchedName: string; saved: number; bestMarket: string; bestPrice: number; avgPrice: number; distanceKm: number | null; estimatedTotal: number; usedDistance: boolean } => x !== null);
   const totalSavings = savingsItems.reduce((s, x) => s + x.saved, 0);
 
   async function addItem() {
@@ -543,6 +577,11 @@ function BuyerShoppingList() {
                   {/* Summary + archive */}
                   <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
                     <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Summary</h2>
+                    {!userCoords && (
+                      <button onClick={requestLocation} className="mb-3 text-xs font-medium text-emerald-600 hover:underline dark:text-emerald-400">
+                        {locationStatus === "requesting" ? "Detecting current location..." : "Use my current location for best overall savings"}
+                      </button>
+                    )}
                     <div className="space-y-0">
                       {[["Total items", items.length], ["Remaining", pending.length], ["Completed", checked.length]].map(([k, v]) => (
                         <div key={String(k)} className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
@@ -589,6 +628,11 @@ function BuyerShoppingList() {
                             </div>
                             <p className="mt-0.5 text-[11px] text-gray-400">Matched: {s.matchedName}</p>
                             <p className="text-[11px] text-gray-400">Avg: GH₵{s.avgPrice.toFixed(2)} vs Best: GH₵{s.bestPrice.toFixed(2)} at {s.bestMarket}</p>
+                            {s.usedDistance ? (
+                              <p className="text-[11px] text-blue-500">Distance-aware: {s.distanceKm?.toFixed(1)} km · est. total GH₵{s.estimatedTotal.toFixed(2)}</p>
+                            ) : (
+                              <p className="text-[11px] text-gray-400">Enable location to include travel distance.</p>
+                            )}
                           </div>
                         ))}
                         <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex justify-between">
