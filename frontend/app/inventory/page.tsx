@@ -101,6 +101,8 @@ function SellerProducts({ role = "seller" }: { role?: "seller" | "admin" }) {
   const [form, setForm] = useState<ProductForm>(emptyForm());
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [viewProduct, setViewProduct] = useState<Product | null>(null);
+  const [submitPrice, setSubmitPrice] = useState("");
+  const [submitMessage, setSubmitMessage] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [sellerPage, setSellerPage] = useState(1);
   const [sellerPageSize, setSellerPageSize] = useState(15);
@@ -180,6 +182,35 @@ function SellerProducts({ role = "seller" }: { role?: "seller" | "admin" }) {
       setProducts(prev => prev.filter(p => p.id !== id));
     } catch (err) { console.error(err); }
     setDeleteTarget(null);
+  }
+
+  async function handlePriceSubmission() {
+    if (!viewProduct || !submitPrice.trim()) return;
+    const price = Number(submitPrice);
+    if (!Number.isFinite(price) || price <= 0) {
+      setSubmitMessage("Enter a valid price above 0.");
+      return;
+    }
+
+    try {
+      const { createSubmission } = await import("@/lib/api/submissions");
+      await createSubmission({
+        productId: viewProduct.id,
+        productName: viewProduct.name,
+        price,
+        market: viewProduct.market?.name,
+      });
+      setSubmitPrice("");
+      setSubmitMessage("Price submitted for admin review.");
+    } catch (err) {
+      setSubmitMessage(err instanceof Error ? err.message : "Unable to submit price.");
+    }
+  }
+
+  function closeProductModal() {
+    setViewProduct(null);
+    setSubmitPrice("");
+    setSubmitMessage("");
   }
 
   const f = (k: keyof ProductForm) => (e: React.ChangeEvent<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement>) => {
@@ -499,11 +530,11 @@ function SellerProducts({ role = "seller" }: { role?: "seller" | "admin" }) {
       {/* View product modal */}
       {viewProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setViewProduct(null)} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeProductModal} />
           <div className="relative z-10 w-full max-w-sm mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="h-32 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/10 flex items-center justify-center relative">
               <Package className="h-16 w-16 text-emerald-300 dark:text-emerald-700" />
-              <button onClick={() => setViewProduct(null)} aria-label="Close" className="absolute top-3 right-3 p-1.5 rounded-lg bg-white/70 dark:bg-gray-800/70 text-gray-500 hover:text-gray-900 dark:hover:text-white"><X className="h-4 w-4" /></button>
+              <button onClick={closeProductModal} aria-label="Close" className="absolute top-3 right-3 p-1.5 rounded-lg bg-white/70 dark:bg-gray-800/70 text-gray-500 hover:text-gray-900 dark:hover:text-white"><X className="h-4 w-4" /></button>
             </div>
             <div className="px-4 py-1.5 bg-gray-900 flex items-center gap-2">
               <TrendingUp className="h-3 w-3 text-emerald-400" />
@@ -525,6 +556,27 @@ function SellerProducts({ role = "seller" }: { role?: "seller" | "admin" }) {
                   <span className="text-sm font-medium text-gray-900 dark:text-white">{v}</span>
                 </div>
               ))}
+              {!isAdmin && (
+                <div className="mt-5 rounded-xl bg-gray-50 p-3 dark:bg-gray-800/60">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">Submit New Price</p>
+                  <p className="mt-0.5 text-xs text-gray-400">Admin approval updates comparison and price history.</p>
+                  <div className="mt-3 flex gap-2">
+                    <input
+                      value={submitPrice}
+                      onChange={(e) => { setSubmitPrice(e.target.value); setSubmitMessage(""); }}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="New price"
+                      className="min-w-0 flex-1 rounded-lg border-0 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-900 dark:text-white"
+                    />
+                    <button onClick={handlePriceSubmission} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700">
+                      Submit
+                    </button>
+                  </div>
+                  {submitMessage && <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">{submitMessage}</p>}
+                </div>
+              )}
             </div>
           </div>
         </div>
